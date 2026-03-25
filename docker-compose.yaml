@@ -75,8 +75,6 @@ services:
         sleep 86400
       done
       "
-    profiles:
-      - backup
 
   # Redis Cache (Express mode - default)
   redis:
@@ -96,10 +94,8 @@ services:
       start_period: 10s
     security_opt:
       - no-new-privileges:true
-    profiles:
-      - express
 
-  # MinIO Object Storage (Express mode - default)
+  # MinIO Object Storage
   minio:
     image: minio/minio:latest
     container_name: worklenz-minio
@@ -121,13 +117,12 @@ services:
       start_period: 10s
     security_opt:
       - no-new-privileges:true
-    profiles:
-      - express
 
-  # MinIO Client - Create initial bucket (Express mode)
+  # MinIO Client - Create initial bucket
   minio-init:
     image: minio/mc:latest
     container_name: worklenz-minio-init
+    restart: "no"
     depends_on:
       minio:
         condition: service_healthy
@@ -147,12 +142,9 @@ services:
       echo 'MinIO bucket created and configured successfully';
       exit 0;
       "
-    profiles:
-      - express
 
   # Backend API
   backend:
-    image: chamikajaycey/worklenz-backend:${BACKEND_VERSION:-2.1.6}
     build:
       context: ./worklenz-backend
       dockerfile: Dockerfile
@@ -220,6 +212,14 @@ services:
       # Google Recaptcha (Optional)
       GOOGLE_CAPTCHA_SECRET_KEY: ${GOOGLE_CAPTCHA_SECRET_KEY:-}
       GOOGLE_CAPTCHA_PASS_SCORE: ${GOOGLE_CAPTCHA_PASS_SCORE:-0.8}
+
+      # SMTP Configuration
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
 
       # Timezone
       TZ: ${TZ:-UTC}

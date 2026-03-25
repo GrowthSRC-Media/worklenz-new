@@ -95,6 +95,10 @@ echo ""
 echo "Step 8: Setting up database user..."
 execute_sql "$DB_DIR/5_database_user.sql" "Database User"
 
+echo ""
+echo "Step 8.1: Applying column fixes..."
+execute_sql "$DB_DIR/fix_missing_columns.sql" "Missing Columns Fix"
+
 # Run migrations if directory exists
 if [ -d "$DB_DIR/migrations" ]; then
     echo ""
