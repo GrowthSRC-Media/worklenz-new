@@ -270,7 +270,7 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  # Nginx Reverse Proxy
+  # Nginx Reverse Proxy (Traefik handles SSL termination)
   nginx:
     image: nginx:1.27-alpine
     container_name: worklenz-nginx
@@ -281,17 +281,20 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "${HTTP_PORT:-80}:80"
-      - "${HTTPS_PORT:-443}:443"
+      - "${HTTP_PORT:-3459}:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - certbot_certs:/etc/letsencrypt:ro
-      - certbot_www:/var/www/certbot:ro
       - nginx_logs:/var/log/nginx
     networks:
       - worklenz-frontend
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.worklenz.rule=Host(`${DOMAIN:-pm.botpresso.com}`)"
+      - "traefik.http.routers.worklenz.entrypoints=websecure"
+      - "traefik.http.routers.worklenz.tls.certresolver=letsencrypt"
+      - "traefik.http.services.worklenz.loadbalancer.server.port=80"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/health"]
       interval: 30s
@@ -299,19 +302,6 @@ services:
       retries: 3
     security_opt:
       - no-new-privileges:true
-    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
-
-  # Certbot for Let's Encrypt SSL
-  certbot:
-    image: certbot/certbot:v3.1.0
-    container_name: worklenz-certbot
-    restart: unless-stopped
-    volumes:
-      - certbot_certs:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-    profiles:
-      - ssl
 
 networks:
   worklenz-backend:
@@ -319,6 +309,8 @@ networks:
     internal: true
   worklenz-frontend:
     driver: bridge
+  dokploy-network:
+    external: true
 
 volumes:
   postgres_data:
@@ -330,8 +322,4 @@ volumes:
   backend_logs:
     driver: local
   nginx_logs:
-    driver: local
-  certbot_certs:
-    driver: local
-  certbot_www:
     driver: local
