@@ -1,82 +1,5 @@
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15.10-alpine
-    container_name: worklenz-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${DB_NAME:-worklenz_db}
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=en_US.UTF-8 --lc-ctype=en_US.UTF-8"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./scripts/db-init-wrapper.sh:/docker-entrypoint-initdb.d/00-init-wrapper.sh:ro
-      - ./worklenz-backend/database:/database:ro
-      - ./backups:/pg_backups
-    networks:
-      - worklenz-backend
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-worklenz_db}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    security_opt:
-      - no-new-privileges:true
-
-  # Database Backup Service
-  db-backup:
-    image: postgres:15.10-alpine
-    container_name: worklenz-db-backup
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      PGHOST: postgres
-      PGPORT: 5432
-      PGDATABASE: ${DB_NAME:-worklenz_db}
-      PGUSER: ${DB_USER:-postgres}
-      PGPASSWORD: ${DB_PASSWORD}
-      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
-    volumes:
-      - ./backups:/backups
-    networks:
-      - worklenz-backend
-    entrypoint: /bin/sh
-    command: >
-      -c "
-      while true; do
-        echo 'Running database backup...'
-        BACKUP_FILE=\"/backups/worklenz_backup_$$(date +%Y%m%d_%H%M%S).sql\"
-        pg_dump > \"$$BACKUP_FILE\" 2>&1
-        if [ $$? -eq 0 ]; then
-          echo \"Database dump completed: $$BACKUP_FILE\"
-          gzip \"$$BACKUP_FILE\"
-          if [ $$? -eq 0 ]; then
-            echo \"Backup compression completed: $$BACKUP_FILE.gz\"
-            echo \"Cleaning up backups older than $$BACKUP_RETENTION_DAYS days...\"
-            find /backups -name 'worklenz_backup_*.sql.gz' -mtime +$$BACKUP_RETENTION_DAYS -delete
-            echo \"Cleanup completed successfully\"
-          else
-            echo \"ERROR: Backup compression failed for $$BACKUP_FILE\"
-            echo \"Removing incomplete uncompressed backup file...\"
-            rm -f \"$$BACKUP_FILE\"
-            echo \"Skipping cleanup due to backup failure\"
-          fi
-        else
-          echo 'ERROR: Database backup failed'
-          echo \"Removing failed backup file: $$BACKUP_FILE\"
-          rm -f \"$$BACKUP_FILE\"
-          echo \"Skipping cleanup due to backup failure\"
-        fi
-        echo 'Next backup in 24 hours...'
-        sleep 86400
-      done
-      "
-
-  # Redis Cache (Express mode - default)
+  # Redis Cache
   redis:
     image: redis:7.4-alpine
     container_name: worklenz-redis
@@ -150,9 +73,6 @@ services:
       dockerfile: Dockerfile
     container_name: worklenz-backend
     restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
     environment:
       # Server Configuration
       NODE_ENV: production
@@ -161,9 +81,9 @@ services:
       COOKIE_SECRET: ${COOKIE_SECRET:?COOKIE_SECRET is required}
       SESSION_NAME: ${SESSION_NAME:-worklenz.sid}
 
-      # Database Configuration
-      DB_HOST: postgres
-      DB_PORT: 5432
+      # Database Configuration (External)
+      DB_HOST: ${DB_HOST:?DB_HOST is required}
+      DB_PORT: ${DB_PORT:-5432}
       DB_NAME: ${DB_NAME:-worklenz_db}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD}
@@ -295,6 +215,7 @@ services:
       - "traefik.http.routers.worklenz.entrypoints=websecure"
       - "traefik.http.routers.worklenz.tls.certresolver=letsencrypt"
       - "traefik.http.services.worklenz.loadbalancer.server.port=80"
+      - "traefik.docker.network=dokploy-network"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/health"]
       interval: 30s
@@ -306,15 +227,12 @@ services:
 networks:
   worklenz-backend:
     driver: bridge
-    internal: true
   worklenz-frontend:
     driver: bridge
   dokploy-network:
     external: true
 
 volumes:
-  postgres_data:
-    driver: local
   redis_data:
     driver: local
   minio_data:
