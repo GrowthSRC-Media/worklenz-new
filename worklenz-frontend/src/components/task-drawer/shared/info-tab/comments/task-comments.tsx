@@ -87,13 +87,6 @@ const processContent = (content: string) => {
   return sanitizeHtml(processed);
 };
 
-const copyCommentLink = (commentId: string) => {
-  const url = new URL(window.location.href);
-  url.searchParams.set('comment', commentId);
-  navigator.clipboard.writeText(url.toString());
-  message.success('Comment link copied!');
-};
-
 const TaskComments = ({ taskId, t }: { taskId?: string; t: TFunction }) => {
   const [loading, setLoading] = useState(true);
   const [comments, setComments] = useState<ITaskCommentViewModel[]>([]);
@@ -103,6 +96,15 @@ const TaskComments = ({ taskId, t }: { taskId?: string; t: TFunction }) => {
   const currentUserId = auth.getCurrentSession()?.id;
   const { socket, connected } = useSocket();
   const dispatch = useAppDispatch();
+  const projectId = useAppSelector(state => state.projectReducer.projectId);
+
+  const copyCommentLink = useCallback((commentId: string) => {
+    const url = new URL(window.location.origin + `/worklenz/projects/${projectId}`);
+    url.searchParams.set('task', taskId || '');
+    url.searchParams.set('comment', commentId);
+    navigator.clipboard.writeText(url.toString());
+    message.success('Comment link copied!');
+  }, [projectId, taskId]);
 
   const getComments = useCallback(
     async (showLoading = true) => {
