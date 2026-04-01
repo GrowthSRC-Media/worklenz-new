@@ -568,7 +568,7 @@ BEGIN
                  status_id,
                  parent_task_id,
                  sort_order,
-                 (SELECT phase_id FROM task_phase WHERE task_id = tasks.id)                      AS phase_id,
+                 (SELECT phase_id FROM task_phase WHERE task_id = tasks.id LIMIT 1)              AS phase_id,
                  CONCAT((SELECT key FROM projects WHERE id = tasks.project_id), '-', task_no)    AS task_key,
                  (SELECT start_time
                   FROM task_timers

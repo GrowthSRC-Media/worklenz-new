@@ -3320,7 +3320,7 @@ BEGIN
                  (SELECT color_code
                   FROM project_phases
                   WHERE id = (SELECT phase_id FROM task_phase WHERE task_id = tasks.id)) AS phase_color_code,
-                 (SELECT phase_id FROM task_phase WHERE task_id = tasks.id) AS phase_id,
+                 (SELECT phase_id FROM task_phase WHERE task_id = tasks.id LIMIT 1) AS phase_id,
 
                  (SELECT COALESCE(ROW_TO_JSON(r), '{}'::JSON)
                   FROM (SELECT is_done, is_doing, is_todo
@@ -3496,7 +3496,7 @@ BEGIN
                  status_id,
                  parent_task_id,
                  sort_order,
-                 (SELECT phase_id FROM task_phase WHERE task_id = tasks.id) AS phase_id,
+                 (SELECT phase_id FROM task_phase WHERE task_id = tasks.id LIMIT 1) AS phase_id,
                  CONCAT((SELECT key FROM projects WHERE id = tasks.project_id), '-', task_no) AS task_key,
                  (SELECT start_time
                   FROM task_timers
