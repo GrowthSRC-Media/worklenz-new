@@ -170,10 +170,10 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=dokploy-network
-      - traefik.http.routers.worklenz-backend-web.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/socket.io`) || PathPrefix(`/public`) || PathPrefix(`/secure`) || PathPrefix(`/csrf-token`) || PathPrefix(`/webhook`))
+      - traefik.http.routers.worklenz-backend-web.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/socket.io`) || PathPrefix(`/socket`) || PathPrefix(`/public`) || PathPrefix(`/secure`) || PathPrefix(`/csrf-token`) || PathPrefix(`/webhook`))
       - traefik.http.routers.worklenz-backend-web.entrypoints=web
       - traefik.http.routers.worklenz-backend-web.middlewares=redirect-to-https@file
-      - traefik.http.routers.worklenz-backend-websecure.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/socket.io`) || PathPrefix(`/public`) || PathPrefix(`/secure`) || PathPrefix(`/csrf-token`) || PathPrefix(`/webhook`))
+      - traefik.http.routers.worklenz-backend-websecure.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/socket.io`) || PathPrefix(`/socket`) || PathPrefix(`/public`) || PathPrefix(`/secure`) || PathPrefix(`/csrf-token`) || PathPrefix(`/webhook`))
       - traefik.http.routers.worklenz-backend-websecure.entrypoints=websecure
       - traefik.http.routers.worklenz-backend-websecure.tls.certresolver=letsencrypt
       - traefik.http.services.worklenz-backend.loadbalancer.server.port=3000
