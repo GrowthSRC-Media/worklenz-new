@@ -29,7 +29,7 @@ services:
       MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
       MINIO_BROWSER: ${MINIO_BROWSER:-on}
     volumes:
-      - ./worklenz/minio:/data
+      - minio_data:/data
     networks:
       - worklenz-backend
       - dokploy-network
@@ -245,6 +245,8 @@ networks:
 
 volumes:
   redis_data:
+    driver: local
+  minio_data:
     driver: local
   backend_logs:
     driver: local
