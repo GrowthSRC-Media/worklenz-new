@@ -11,6 +11,7 @@ import {
   Dropdown,
   Menu,
   Popconfirm,
+  message,
 } from '@/shared/antd-imports';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -29,7 +30,7 @@ import { calculateTimeDifference } from '@/utils/calculate-time-difference';
 import { getUserSession } from '@/utils/session-helper';
 import './project-view-updates.css';
 import { useAppSelector } from '@/hooks/useAppSelector';
-import { DeleteOutlined } from '@/shared/antd-imports';
+import { DeleteOutlined, LinkOutlined } from '@/shared/antd-imports';
 
 const MAX_COMMENT_LENGTH = 2000;
 
@@ -42,6 +43,14 @@ function linkify(text: string): string {
     return `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>`;
   });
 }
+
+const copyProjectCommentLink = (commentId: string) => {
+  const url = new URL(window.location.href);
+  url.searchParams.set('tab', 'updates');
+  url.searchParams.set('comment', commentId);
+  navigator.clipboard.writeText(url.toString());
+  message.success('Comment link copied!');
+};
 
 const ProjectViewUpdates = () => {
   const { projectId } = useParams();
@@ -144,6 +153,28 @@ const ProjectViewUpdates = () => {
     void getMembers();
     void getComments();
   }, [getMembers, getComments, refreshTimestamp]);
+
+  // Scroll to and highlight a comment if `comment` param is in URL
+  useEffect(() => {
+    if (!comments.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const commentId = params.get('comment');
+    if (!commentId) return;
+
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`project-comment-${commentId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('project-comment-highlight');
+        setTimeout(() => el.classList.remove('project-comment-highlight'), 3000);
+      }
+      const url = new URL(window.location.href);
+      url.searchParams.delete('comment');
+      window.history.replaceState({}, '', url.toString());
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [comments]);
 
   const handleCancel = useCallback(() => {
     form.resetFields(['comment']);
@@ -254,7 +285,7 @@ const ProjectViewUpdates = () => {
           overlay={getCommentMenu(comment.id ?? '')}
           trigger={['contextMenu']}
         >
-          <div>
+          <div id={`project-comment-${comment.id}`}>
             <Flex gap={8}>
               <CustomAvatar avatarName={comment.created_by || ''} />
               <Flex vertical flex={1}>
@@ -266,6 +297,12 @@ const ProjectViewUpdates = () => {
                     <Typography.Text style={{ fontSize: 13, color: colors.deepLightGray }}>
                       {timeDifference}
                     </Typography.Text>
+                  </Tooltip>
+                  <Tooltip title="Copy comment link">
+                    <LinkOutlined
+                      style={{ color: colors.lightGray, cursor: 'pointer' }}
+                      onClick={() => comment.id && copyProjectCommentLink(comment.id)}
+                    />
                   </Tooltip>
                 </Space>
                 <Typography.Paragraph

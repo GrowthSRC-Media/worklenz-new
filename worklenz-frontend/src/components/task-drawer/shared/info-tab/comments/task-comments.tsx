@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Skeleton, Avatar, Tooltip, Popconfirm } from '@/shared/antd-imports';
+import { Skeleton, Avatar, Tooltip, Popconfirm, message } from '@/shared/antd-imports';
 import { Comment } from '@ant-design/compatible';
 import dayjs from 'dayjs';
 
-import { LikeOutlined, LikeTwoTone } from '@/shared/antd-imports';
+import { LikeOutlined, LikeTwoTone, LinkOutlined } from '@/shared/antd-imports';
 import { ITaskCommentViewModel } from '@/types/tasks/task-comments.types';
 import taskCommentsApiService from '@/api/tasks/task-comments.api.service';
 import { useAuthService } from '@/hooks/useAuth';
@@ -87,6 +87,13 @@ const processContent = (content: string) => {
   return sanitizeHtml(processed);
 };
 
+const copyCommentLink = (commentId: string) => {
+  const url = new URL(window.location.href);
+  url.searchParams.set('comment', commentId);
+  navigator.clipboard.writeText(url.toString());
+  message.success('Comment link copied!');
+};
+
 const TaskComments = ({ taskId, t }: { taskId?: string; t: TFunction }) => {
   const [loading, setLoading] = useState(true);
   const [comments, setComments] = useState<ITaskCommentViewModel[]>([]);
@@ -153,6 +160,29 @@ const TaskComments = ({ taskId, t }: { taskId?: string; t: TFunction }) => {
   const scrollIntoView = useCallback(() => {
     commentsViewRef.current?.scrollIntoView();
   }, []);
+
+  // Scroll to and highlight a comment if `comment` param is in URL
+  useEffect(() => {
+    if (!comments.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const commentId = params.get('comment');
+    if (!commentId) return;
+
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`comment-${commentId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('comment-highlight');
+        setTimeout(() => el.classList.remove('comment-highlight'), 3000);
+      }
+      // Clean up the comment param from URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete('comment');
+      window.history.replaceState({}, '', url.toString());
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [comments]);
 
   useEffect(() => {
     const handleCommentCreate = () => {
@@ -295,7 +325,7 @@ const TaskComments = ({ taskId, t }: { taskId?: string; t: TFunction }) => {
               const isUserComment = isCurrentUser(item.user_id);
 
               return (
-                <div key={item.id}>
+                <div key={item.id} id={`comment-${item.id}`}>
                   {/* Add time separator if this is the first comment or if it's from a different day than the previous comment */}
                   {(index === 0 ||
                     (index > 0 &&
@@ -356,6 +386,14 @@ const TaskComments = ({ taskId, t }: { taskId?: string; t: TFunction }) => {
                           </span>
                         </Tooltip>
                       </span>,
+                      <Tooltip key="copy-link" title="Copy comment link">
+                        <span
+                          onClick={() => item.id && copyCommentLink(item.id)}
+                          style={actionStyle}
+                        >
+                          <LinkOutlined />
+                        </span>
+                      </Tooltip>,
                       //   canDelete(item.user_id) && (
                       //     <span
                       //       key="edit"

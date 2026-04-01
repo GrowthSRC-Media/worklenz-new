@@ -37,6 +37,7 @@ const useTaskDrawerUrlSync = () => {
       // Create a new URLSearchParams object to avoid modifying the current one
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('task');
+      newParams.delete('comment');
 
       // Update the URL without triggering a navigation
       setSearchParams(newParams, { replace: true });

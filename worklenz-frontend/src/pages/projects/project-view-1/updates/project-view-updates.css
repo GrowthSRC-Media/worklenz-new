@@ -17,3 +17,15 @@
   font-weight: 500;
   padding: 0;
 }
+
+/* Comment permalink highlight animation */
+.project-comment-highlight {
+  animation: project-comment-flash 3s ease-out;
+  border-radius: 8px;
+}
+
+@keyframes project-comment-flash {
+  0% { background-color: rgba(24, 144, 255, 0.25); }
+  100% { background-color: transparent; }
+}
+

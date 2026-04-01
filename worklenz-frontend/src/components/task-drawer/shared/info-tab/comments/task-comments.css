@@ -286,3 +286,15 @@
   width: 28px;
   height: 28px;
 }
+
+/* Comment permalink highlight animation */
+.comment-highlight {
+  animation: comment-flash 3s ease-out;
+  border-radius: 8px;
+}
+
+@keyframes comment-flash {
+  0% { background-color: rgba(24, 144, 255, 0.25); }
+  100% { background-color: transparent; }
+}
+
