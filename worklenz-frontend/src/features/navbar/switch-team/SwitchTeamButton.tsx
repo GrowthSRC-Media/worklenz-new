@@ -109,9 +109,11 @@ const SwitchTeamButton = () => {
   return (
     <Dropdown
       overlayClassName="switch-team-dropdown"
+      overlayStyle={{ zIndex: 1050 }}
       menu={{ items: dropdownItems }}
       trigger={['click']}
       placement="bottomRight"
+      getPopupContainer={() => document.body}
     >
       <Tooltip title={t('switchTeamTooltip')} trigger={'hover'}>
         <Flex

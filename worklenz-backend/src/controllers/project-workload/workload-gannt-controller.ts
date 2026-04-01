@@ -586,10 +586,10 @@ export default class WorkloadGanntController extends WLTasksControllerBase {
              t.archived,
              t.sort_order,
 
-             (SELECT phase_id FROM task_phase WHERE task_id = t.id) AS phase_id,
+             (SELECT phase_id FROM task_phase WHERE task_id = t.id LIMIT 1) AS phase_id,
              (SELECT name
               FROM project_phases
-              WHERE id = (SELECT phase_id FROM task_phase WHERE task_id = t.id)) AS phase_name,
+              WHERE id = (SELECT phase_id FROM task_phase WHERE task_id = t.id LIMIT 1)) AS phase_name,
 
 
              (SELECT color_code

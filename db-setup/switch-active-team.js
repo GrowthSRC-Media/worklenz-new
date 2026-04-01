@@ -1,0 +1,26 @@
+const { Client } = require("pg");
+
+async function run() {
+  const client = new Client({
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT || 5432),
+    user: process.env.DB_USER || "postgres",
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME || "worklenz_db",
+    ssl: { rejectUnauthorized: false }
+  });
+
+  try {
+    await client.connect();
+    const result = await client.query(
+      `UPDATE users SET active_team = $1 WHERE LOWER(email) = LOWER($2) RETURNING id, name, active_team`,
+      [process.env.NEW_TEAM_ID, "prasanna@botpresso.com"]
+    );
+    console.log("Updated:", result.rows[0]);
+  } catch (err) {
+    console.error("Error:", err.message);
+  } finally {
+    await client.end();
+  }
+}
+run();

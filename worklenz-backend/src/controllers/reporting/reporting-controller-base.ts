@@ -47,10 +47,10 @@ export default abstract class ReportingControllerBase extends WorklenzController
               (SELECT name FROM task_priorities WHERE id = tasks.priority_id) AS priority_name,
               (SELECT color_code FROM task_priorities WHERE id = tasks.priority_id) AS priority_color,
               end_date,
-              (SELECT phase_id FROM task_phase WHERE task_id = tasks.id) AS phase_id,
+              (SELECT phase_id FROM task_phase WHERE task_id = tasks.id LIMIT 1) AS phase_id,
               (SELECT name
               FROM project_phases
-              WHERE id = (SELECT phase_id FROM task_phase WHERE task_id = tasks.id)) AS phase_name,
+              WHERE id = (SELECT phase_id FROM task_phase WHERE task_id = tasks.id LIMIT 1)) AS phase_name,
               completed_at,
               total_minutes,
               (SELECT SUM(time_spent) FROM task_work_log WHERE task_id = tasks.id) AS total_seconds_spent

@@ -419,8 +419,8 @@ export default class ReportingMembersController extends ReportingControllerBaseW
                     (SELECT name FROM task_priorities WHERE id = t.priority_id) AS priority_name,
                     (SELECT color_code FROM task_priorities WHERE id = t.priority_id) AS priority_color,
 
-                    (SELECT name FROM project_phases WHERE id = (SELECT phase_id FROM task_phase WHERE task_id = t.id)) AS phase_name,
-                    (SELECT color_code FROM project_phases WHERE id = (SELECT phase_id FROM task_phase WHERE task_id = t.id)) AS phase_color,
+                    (SELECT name FROM project_phases WHERE id = (SELECT phase_id FROM task_phase WHERE task_id = t.id LIMIT 1)) AS phase_name,
+                    (SELECT color_code FROM project_phases WHERE id = (SELECT phase_id FROM task_phase WHERE task_id = t.id LIMIT 1)) AS phase_color,
 
                     (total_minutes * 60) AS total_minutes,
                     (SELECT SUM(time_spent) FROM task_work_log twl WHERE twl.task_id = t.id AND twl.user_id = (SELECT user_id FROM team_members WHERE id = $1)) AS time_logged,

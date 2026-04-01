@@ -87,7 +87,7 @@ services:
     build:
       context: ./worklenz-backend
       dockerfile: Dockerfile
-    container_name: worklenz-backend
+    container_name: wl-backend-v2
     restart: unless-stopped
     environment:
       # Server Configuration

@@ -367,7 +367,7 @@ export default abstract class ProjectTemplatesControllerBase extends WorklenzCon
     if (taskIncludes.phase) {
       taskIncludesClause += ` (SELECT name
                     FROM project_phases
-                    WHERE project_phases.id = (SELECT phase_id FROM task_phase WHERE task_id = t.id)) AS phase_name,`;
+                    WHERE project_phases.id = (SELECT phase_id FROM task_phase WHERE task_id = t.id LIMIT 1)) AS phase_name,`;
     }
     if (taskIncludes.subtasks) {
       taskIncludesClause += ` parent_task_id,`;

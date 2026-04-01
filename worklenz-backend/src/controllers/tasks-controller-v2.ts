@@ -620,13 +620,13 @@ export default class TasksControllerV2 extends TasksControllerBase {
              (SELECT use_time_progress FROM projects WHERE id = t.project_id) AS project_use_time_progress,
              COALESCE(t.progress_value, 0) AS complete_ratio,
 
-             (SELECT phase_id FROM task_phase WHERE task_id = t.id) AS phase_id,
+             (SELECT phase_id FROM task_phase WHERE task_id = t.id LIMIT 1) AS phase_id,
              (SELECT name
               FROM project_phases
-              WHERE id = (SELECT phase_id FROM task_phase WHERE task_id = t.id)) AS phase_name,
+              WHERE id = (SELECT phase_id FROM task_phase WHERE task_id = t.id LIMIT 1)) AS phase_name,
               (SELECT color_code
                 FROM project_phases
-                WHERE id = (SELECT phase_id FROM task_phase WHERE task_id = t.id)) AS phase_color_code,
+                WHERE id = (SELECT phase_id FROM task_phase WHERE task_id = t.id LIMIT 1)) AS phase_color_code,
 
              (EXISTS(SELECT 1 FROM task_subscribers WHERE task_id = t.id)) AS has_subscribers,
              (EXISTS(SELECT 1 FROM task_dependencies td WHERE td.task_id = t.id)) AS has_dependencies,

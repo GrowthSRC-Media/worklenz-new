@@ -174,7 +174,7 @@ export default class RoadmapTasksControllerV2 extends RoadmapTasksControllerV2Ba
              t.status_id AS status,
              t.archived,
 
-             (SELECT phase_id FROM task_phase WHERE task_id = t.id) AS phase_id,
+             (SELECT phase_id FROM task_phase WHERE task_id = t.id LIMIT 1) AS phase_id,
 
              (SELECT COALESCE(ROW_TO_JSON(r), '{}'::JSON)
               FROM (SELECT is_done, is_doing, is_todo
