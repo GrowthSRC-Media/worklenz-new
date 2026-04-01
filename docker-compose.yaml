@@ -29,7 +29,7 @@ services:
       MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
       MINIO_BROWSER: ${MINIO_BROWSER:-on}
     volumes:
-      - minio_data:/data
+      - ./worklenz/minio:/data
     networks:
       - worklenz-backend
     healthcheck:
@@ -161,7 +161,6 @@ services:
 
   # Frontend Application
   frontend:
-    image: chamikajaycey/worklenz-frontend:${FRONTEND_VERSION:-2.1.6}
     build:
       context: ./worklenz-frontend
       dockerfile: Dockerfile
@@ -236,8 +235,6 @@ networks:
 
 volumes:
   redis_data:
-    driver: local
-  minio_data:
     driver: local
   backend_logs:
     driver: local
