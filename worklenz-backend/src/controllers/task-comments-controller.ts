@@ -67,6 +67,16 @@ export default class TaskCommentsController extends WorklenzControllerBase {
     return replacedContent;
   }
 
+  private static resolveContentForEmail(content: string, mentions: IMention[]) {
+    const mentionNames = mentions.map(mention => mention.name);
+    let resolved = content;
+    mentionNames.forEach((name, index) => {
+      const regex = new RegExp(`\\{${index}\\}`, "g");
+      resolved = resolved.replace(regex, `@${name}`);
+    });
+    return resolved;
+  }
+
   private static async getUserDataByTeamMemberId(senderUserId: string, teamMemberId: string, projectId: string) {
     const q = `
       SELECT id,
@@ -104,12 +114,14 @@ export default class TaskCommentsController extends WorklenzControllerBase {
     const { mentions, attachments, task_id } = req.body;
     const url = `${S3_URL}/${getRootDir()}`;
 
+    const originalContent = req.body.content;
     let commentContent = req.body.content;
     if (mentions.length > 0) {
       commentContent = this.replaceContent(commentContent, mentions);
     }
 
     req.body.content = commentContent;
+    const emailContent = mentions.length > 0 ? this.resolveContentForEmail(commentContent, mentions) : originalContent;
 
     const q = `SELECT create_task_comment($1) AS comment;`;
     const result = await db.query(q, [JSON.stringify(req.body)]);
@@ -171,7 +183,7 @@ export default class TaskCommentsController extends WorklenzControllerBase {
           message: commentMessage,
           receiverEmail: member.email,
           receiverName: member.name,
-          content: req.body.content,
+          content: emailContent,
           commentId: response.id,
           projectId: response.project_id,
           taskId: req.body.task_id,
@@ -204,7 +216,7 @@ export default class TaskCommentsController extends WorklenzControllerBase {
               message: mentionMessage,
               receiverEmail: member.email,
               receiverName: member.user_name,
-              content: req.body.content,
+              content: emailContent,
               commentId: response.id,
               projectId: response.project_id,
               taskId: req.body.task_id,
@@ -241,7 +253,7 @@ export default class TaskCommentsController extends WorklenzControllerBase {
     const commentdata = {
       attachments: commentAttachments,
       avatar_url: avatarUrl,
-      content: req.body.content,
+      content: emailContent,
       created_at: commentData?.created_at || new Date().toISOString(),
       edit: false,
       id: response.id,
@@ -268,12 +280,14 @@ export default class TaskCommentsController extends WorklenzControllerBase {
     req.body.team_id = req.user?.team_id;
     const { mentions, comment_id } = req.body;
 
+    const originalContent = req.body.content;
     let commentContent = req.body.content;
     if (mentions.length > 0) {
       commentContent = await this.replaceContent(commentContent, mentions);
     }
 
     req.body.content = commentContent;
+    const emailContent = mentions.length > 0 ? this.resolveContentForEmail(commentContent, mentions) : originalContent;
 
     const q = `SELECT create_task_comment($1) AS comment;`;
     const result = await db.query(q, [JSON.stringify(req.body)]);
@@ -304,7 +318,7 @@ export default class TaskCommentsController extends WorklenzControllerBase {
           message: commentMessage,
           receiverEmail: member.email,
           receiverName: member.name,
-          content: req.body.content,
+          content: emailContent,
           commentId: response.id,
           projectId: response.project_id,
           taskId: req.body.task_id,
@@ -337,7 +351,7 @@ export default class TaskCommentsController extends WorklenzControllerBase {
               message: mentionMessage,
               receiverEmail: member.email,
               receiverName: member.user_name,
-              content: req.body.content,
+              content: emailContent,
               commentId: response.id,
               projectId: response.project_id,
               taskId: req.body.task_id,
@@ -608,6 +622,7 @@ export default class TaskCommentsController extends WorklenzControllerBase {
     const assignees = await getAssignees(task_id);
 
     const commentMessage = `<b>${req.user?.name}</b> added a new attachment as a comment on <b>${commentId.task_name}</b> (${commentId.team_name})`;
+    const emailContent = req.body.content || "";
 
     for (const member of assignees || []) {
       if (member.user_id && member.user_id === req.user?.id) continue;
@@ -626,7 +641,7 @@ export default class TaskCommentsController extends WorklenzControllerBase {
           message: commentMessage,
           receiverEmail: member.email,
           receiverName: member.name,
-          content: req.body.content,
+          content: emailContent,
           commentId: commentId.id,
           projectId: commentId.project_id,
           taskId: task_id,

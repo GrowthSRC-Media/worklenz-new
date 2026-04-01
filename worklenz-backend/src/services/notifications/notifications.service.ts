@@ -40,7 +40,13 @@ export class NotificationsService {
   }
 
   public static sendNotification(receiver: IReceiver): void {
-    const url = receiver.project_id ? `/worklenz/projects/${receiver.project_id}` : null;
+    let url: string | null = null;
+    if (receiver.project_id) {
+      url = `/worklenz/projects/${receiver.project_id}`;
+      if (receiver.task_id) {
+        url += `?task=${receiver.task_id}`;
+      }
+    }
     const notification = new WorklenzNotification(receiver.team, receiver.team_id, receiver.message, url);
 
     if (receiver.project) {
