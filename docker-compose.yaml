@@ -210,13 +210,6 @@ services:
       - worklenz-frontend
       - worklenz-backend
       - dokploy-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.worklenz.rule=Host(`${DOMAIN:-pm.botpresso.com}`)"
-      - "traefik.http.routers.worklenz.entrypoints=websecure"
-      - "traefik.http.routers.worklenz.tls.certresolver=letsencrypt"
-      - "traefik.http.services.worklenz.loadbalancer.server.port=80"
-      - "traefik.docker.network=dokploy-network"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/health"]
       interval: 30s
