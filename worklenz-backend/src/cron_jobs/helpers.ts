@@ -12,8 +12,10 @@ export function mapMembersWithAnd(members: string) {
 }
 
 export function getBaseUrl() {
-  if (isLocalServer()) return `http://${process.env.FRONTEND_URL}`;
-  return `https://${process.env.FRONTEND_URL}`;
+  const url = process.env.FRONTEND_URL || "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (isLocalServer()) return `http://${url}`;
+  return `https://${url}`;
 }
 
 function mapMembers(project: ITaskAssignmentModelProject) {
