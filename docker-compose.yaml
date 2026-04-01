@@ -32,6 +32,22 @@ services:
       - ./worklenz/minio:/data
     networks:
       - worklenz-backend
+      - dokploy-network
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.routers.worklenz-minio-web.rule=Host(`${DOMAIN}`) && PathPrefix(`/minio`)
+      - traefik.http.routers.worklenz-minio-web.entrypoints=web
+      - traefik.http.routers.worklenz-minio-web.middlewares=redirect-to-https@file
+      - traefik.http.routers.worklenz-minio-websecure.rule=Host(`${DOMAIN}`) && PathPrefix(`/minio`)
+      - traefik.http.routers.worklenz-minio-websecure.entrypoints=websecure
+      - traefik.http.routers.worklenz-minio-websecure.tls.certresolver=letsencrypt
+      - traefik.http.middlewares.minio-stripprefix.stripprefix.prefixes=/minio
+      - traefik.http.routers.worklenz-minio-web.middlewares=redirect-to-https@file
+      - traefik.http.routers.worklenz-minio-websecure.middlewares=minio-stripprefix
+      - traefik.http.services.worklenz-minio.loadbalancer.server.port=9000
+      - traefik.http.routers.worklenz-minio-web.service=worklenz-minio
+      - traefik.http.routers.worklenz-minio-websecure.service=worklenz-minio
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
@@ -151,6 +167,18 @@ services:
       - worklenz-backend
       - worklenz-frontend
       - dokploy-network
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.routers.worklenz-backend-web.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/socket.io`) || PathPrefix(`/public`) || PathPrefix(`/secure`) || PathPrefix(`/csrf-token`) || PathPrefix(`/webhook`))
+      - traefik.http.routers.worklenz-backend-web.entrypoints=web
+      - traefik.http.routers.worklenz-backend-web.middlewares=redirect-to-https@file
+      - traefik.http.routers.worklenz-backend-websecure.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/socket.io`) || PathPrefix(`/public`) || PathPrefix(`/secure`) || PathPrefix(`/csrf-token`) || PathPrefix(`/webhook`))
+      - traefik.http.routers.worklenz-backend-websecure.entrypoints=websecure
+      - traefik.http.routers.worklenz-backend-websecure.tls.certresolver=letsencrypt
+      - traefik.http.services.worklenz-backend.loadbalancer.server.port=3000
+      - traefik.http.routers.worklenz-backend-web.service=worklenz-backend
+      - traefik.http.routers.worklenz-backend-websecure.service=worklenz-backend
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/public/health"]
       interval: 30s
@@ -183,6 +211,20 @@ services:
     networks:
       - worklenz-frontend
       - dokploy-network
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.routers.worklenz-frontend-web.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.worklenz-frontend-web.entrypoints=web
+      - traefik.http.routers.worklenz-frontend-web.middlewares=redirect-to-https@file
+      - traefik.http.routers.worklenz-frontend-web.priority=1
+      - traefik.http.routers.worklenz-frontend-websecure.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.worklenz-frontend-websecure.entrypoints=websecure
+      - traefik.http.routers.worklenz-frontend-websecure.tls.certresolver=letsencrypt
+      - traefik.http.routers.worklenz-frontend-websecure.priority=1
+      - traefik.http.services.worklenz-frontend.loadbalancer.server.port=5000
+      - traefik.http.routers.worklenz-frontend-web.service=worklenz-frontend
+      - traefik.http.routers.worklenz-frontend-websecure.service=worklenz-frontend
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000"]
       interval: 30s
