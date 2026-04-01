@@ -30,6 +30,7 @@ import {
   S3_ACCESS_KEY_ID,
   S3_SECRET_ACCESS_KEY,
   S3_URL,
+  S3_PUBLIC_URL,
   STORAGE_PROVIDER,
 } from "./constants";
 
@@ -331,7 +332,13 @@ async function createPresignedUrlWithS3Client(key: string, file: string) {
     ResponseContentType: `${contentType}`,
     ResponseContentDisposition: `attachment; filename=${file}`,
   });
-  return getSignedUrl(s3Client, command, { expiresIn: 3600 });
+  const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+  // Replace internal Docker hostname with public URL for browser access
+  const endpoint = getEndpointFromUrl();
+  if (endpoint && S3_PUBLIC_URL && S3_PUBLIC_URL !== endpoint) {
+    return url.replace(endpoint, S3_PUBLIC_URL);
+  }
+  return url;
 }
 
 async function createPresignedUrlWithAzureClient(key: string, file: string) {

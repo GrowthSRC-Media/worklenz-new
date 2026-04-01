@@ -386,14 +386,9 @@ const TaskComments = ({ taskId, t }: { taskId?: string; t: TFunction }) => {
                           </span>
                         </Tooltip>
                       </span>,
-                      <Tooltip key="copy-link" title="Copy comment link">
-                        <span
-                          onClick={() => item.id && copyCommentLink(item.id)}
-                          style={actionStyle}
-                        >
-                          <LinkOutlined />
-                        </span>
-                      </Tooltip>,
+                      <span key="copy-link" onClick={() => item.id && copyCommentLink(item.id)} style={actionStyle}>
+                        <LinkOutlined />
+                      </span>,
                       //   canDelete(item.user_id) && (
                       //     <span
                       //       key="edit"

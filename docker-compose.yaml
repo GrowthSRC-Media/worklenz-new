@@ -110,6 +110,7 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
       S3_URL: ${S3_URL:-http://minio:9000}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
 
       # Azure Blob Storage Configuration (Advanced mode)
       AZURE_STORAGE_ACCOUNT_NAME: ${AZURE_STORAGE_ACCOUNT_NAME:-}
@@ -208,6 +209,7 @@ services:
       - nginx_logs:/var/log/nginx
     networks:
       - worklenz-frontend
+      - worklenz-backend
       - dokploy-network
     labels:
       - "traefik.enable=true"
