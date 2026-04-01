@@ -81,6 +81,7 @@ export default class TaskCommentsController extends WorklenzControllerBase {
     const q = `
       SELECT id,
              socket_id,
+             users.email,
              users.name AS user_name,
              (SELECT email_notifications_enabled
               FROM notification_settings
