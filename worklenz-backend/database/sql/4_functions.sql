@@ -1202,6 +1202,8 @@ BEGIN
 
             INSERT INTO team_members (job_title_id, user_id, team_id, role_id)
             VALUES (_job_title_id, _user_id, _team_id, _role_id)
+            ON CONFLICT (user_id, team_id) WHERE user_id IS NOT NULL
+            DO UPDATE SET role_id = EXCLUDED.role_id
             RETURNING id INTO _team_member_id;
 
             IF EXISTS(SELECT id
@@ -3247,8 +3249,8 @@ BEGIN
                     WHERE id = (SELECT category_id FROM cpt_task_statuses WHERE id = cpt_tasks.status_id)) r) AS status_category,
                  (SELECT name
                   FROM cpt_phases
-                  WHERE id = (SELECT phase_id FROM cpt_task_phases WHERE task_id = cpt_tasks.id)) AS phase_name,
-                 (SELECT phase_id FROM cpt_task_phases WHERE task_id = cpt_tasks.id) AS phase_id,
+                  WHERE id = (SELECT phase_id FROM cpt_task_phases WHERE task_id = cpt_tasks.id LIMIT 1)) AS phase_name,
+                 (SELECT phase_id FROM cpt_task_phases WHERE task_id = cpt_tasks.id LIMIT 1) AS phase_id,
                  (SELECT ARRAY_TO_JSON(ARRAY_AGG(ROW_TO_JSON(r)))
                   FROM (SELECT cpt_task_labels.label_id AS id,
                                (SELECT name FROM team_labels WHERE id = cpt_task_labels.label_id) AS name,
@@ -3529,7 +3531,7 @@ BEGIN
                  (SELECT COUNT(*) FROM tasks WHERE parent_task_id = _task_id) AS sub_tasks_count,
                  (SELECT name FROM users WHERE id = tasks.reporter_id) AS reporter,
                  (SELECT get_task_assignees(tasks.id)) AS assignees,
-                 (SELECT id FROM team_members WHERE user_id = _user_id AND team_id = _team_id) AS team_member_id,
+                 (SELECT id FROM team_members WHERE user_id = _user_id AND team_id = _team_id LIMIT 1) AS team_member_id,
                  billable,
                  schedule_id
           FROM tasks
@@ -4529,7 +4531,7 @@ BEGIN
                  (SELECT COUNT(*) FROM tasks WHERE parent_task_id = _task_id) AS sub_tasks_count,
                  (SELECT name FROM users WHERE id = tasks.reporter_id) AS reporter,
                  (SELECT get_task_assignees(tasks.id)) AS assignees,
-                 (SELECT id FROM team_members WHERE user_id = _user_id AND team_id = _team_id) AS team_member_id
+                 (SELECT id FROM team_members WHERE user_id = _user_id AND team_id = _team_id LIMIT 1) AS team_member_id
           FROM tasks
           WHERE id = _task_id) rec;
 
