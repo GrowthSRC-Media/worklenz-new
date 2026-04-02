@@ -12,17 +12,11 @@ const PushNotificationTemplate = ({
 }) => {
   const handleClick = async () => {
     if (notificationData.url) {
-      let url = notificationData.url;
-      if (notificationData.params && Object.keys(notificationData.params).length) {
-        const q = toQueryString(notificationData.params);
-        url += q;
-      }
-
       if (notificationData.team_id) {
         await teamsApiService.setActiveTeam(notificationData.team_id);
       }
 
-      window.location.href = url;
+      window.location.href = notificationData.url;
     }
   };
 
