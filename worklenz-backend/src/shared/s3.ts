@@ -9,7 +9,7 @@ import {
   S3Client
 } from "@aws-sdk/client-s3";
 import {isProduction, isTestServer, log_error} from "./utils";
-import {BUCKET, REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_URL} from "./constants";
+import {BUCKET, REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_URL, S3_PUBLIC_URL} from "./constants";
 import {getSignedUrl} from "@aws-sdk/s3-request-presigner";
 import mime from "mime";
 
@@ -133,5 +133,10 @@ export async function createPresignedUrlWithClient(key: string, file: string) {
     ResponseContentType: `${contentType}`,
     ResponseContentDisposition: `attachment; filename=${file}`,
   });
-  return getSignedUrl(s3Client, command, {expiresIn: 3600});
+  const url = await getSignedUrl(s3Client, command, {expiresIn: 3600});
+  // Replace internal Docker hostname with public URL for browser access
+  if (S3_PUBLIC_URL && S3_URL && S3_PUBLIC_URL !== S3_URL) {
+    return url.replace(S3_URL, S3_PUBLIC_URL);
+  }
+  return url;
 }

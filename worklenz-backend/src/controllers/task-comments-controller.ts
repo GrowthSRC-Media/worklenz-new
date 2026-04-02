@@ -658,17 +658,53 @@ export default class TaskCommentsController extends WorklenzControllerBase {
 
   @HandleExceptions()
   public static async download(req: IWorkLenzRequest, res: IWorkLenzResponse): Promise<IWorkLenzResponse> {
+    if (req.query.id) {
+      const file = encodeURIComponent(req.query.file as string || "download");
+      const streamUrl = `/api/v1/task-comments/stream-download?id=${req.query.id}&file=${file}`;
+      return res.status(200).send(new ServerResponse(true, streamUrl));
+    }
+
+    return res.status(200).send(new ServerResponse(true, null));
+  }
+
+  @HandleExceptions()
+  public static async streamDownload(req: IWorkLenzRequest, res: any): Promise<void> {
+    const { GetObjectCommand } = await import("@aws-sdk/client-s3");
+    const { S3Client } = await import("@aws-sdk/client-s3");
+    const { BUCKET, REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_URL } = await import("../shared/constants");
+
+    const s3 = new S3Client({
+      region: REGION,
+      credentials: { accessKeyId: S3_ACCESS_KEY_ID || "", secretAccessKey: S3_SECRET_ACCESS_KEY || "" },
+      endpoint: S3_URL,
+      forcePathStyle: true,
+    });
+
     const q = `SELECT CONCAT($2::TEXT, '/', team_id, '/', project_id, '/', task_id, '/', comment_id, '/', id, '.', type) AS key
                FROM task_comment_attachments
                WHERE id = $1;`;
     const result = await db.query(q, [req.query.id, getRootDir()]);
     const [data] = result.rows;
 
-    if (data?.key) {
-      const url = await createPresignedUrlWithClient(data.key, req.query.file as string);
-      return res.status(200).send(new ServerResponse(true, url));
+    if (!data?.key) {
+      res.status(404).send("Not found");
+      return;
     }
 
-    return res.status(200).send(new ServerResponse(true, null));
+    const fileName = (req.query.file as string) || "download";
+    const command = new GetObjectCommand({ Bucket: BUCKET, Key: data.key });
+    const response = await s3.send(command);
+
+    if (!response.Body) {
+      res.status(404).send("Not found");
+      return;
+    }
+
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    if (response.ContentType) res.setHeader("Content-Type", response.ContentType);
+    if (response.ContentLength) res.setHeader("Content-Length", response.ContentLength.toString());
+
+    // @ts-ignore
+    response.Body.pipe(res);
   }
 }

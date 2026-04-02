@@ -1,9 +1,10 @@
 import { IWorkLenzRequest } from "../interfaces/worklenz-request";
 import { IWorkLenzResponse } from "../interfaces/worklenz-response";
 
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import db from "../config/db";
 import { humanFileSize, smallId } from "../shared/utils";
-import { getStorageUrl } from "../shared/constants";
+import { getStorageUrl, BUCKET, REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_URL } from "../shared/constants";
 import { ServerResponse } from "../models/server-response";
 import {
   createPresignedUrlWithClient,
@@ -151,11 +152,50 @@ export default class AttachmentController extends WorklenzControllerBase {
     const [data] = result.rows;
 
     if (data) {
-      const key = getKey(data.team_id, data.project_id, data.id, data.type);
-      const url = await createPresignedUrlWithClient(key, req.query.file as string);
-      return res.status(200).send(new ServerResponse(true, url));
+      const file = encodeURIComponent(req.query.file as string || `${data.id}.${data.type}`);
+      const streamUrl = `/api/v1/attachments/stream-download?id=${data.id}&file=${file}`;
+      return res.status(200).send(new ServerResponse(true, streamUrl));
     }
 
     return res.status(200).send(new ServerResponse(true, null));
+  }
+
+  @HandleExceptions()
+  public static async streamDownload(req: IWorkLenzRequest, res: any): Promise<void> {
+    const s3 = new S3Client({
+      region: REGION,
+      credentials: { accessKeyId: S3_ACCESS_KEY_ID || "", secretAccessKey: S3_SECRET_ACCESS_KEY || "" },
+      endpoint: S3_URL,
+      forcePathStyle: true,
+    });
+
+    const q = `SELECT team_id, project_id, id, type
+               FROM task_attachments
+               WHERE id = $1;`;
+    const result = await db.query(q, [req.query.id]);
+    const [data] = result.rows;
+
+    if (!data) {
+      res.status(404).send("Not found");
+      return;
+    }
+
+    const key = getKey(data.team_id, data.project_id, data.id, data.type);
+    const fileName = (req.query.file as string) || `${data.id}.${data.type}`;
+
+    const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
+    const response = await s3.send(command);
+
+    if (!response.Body) {
+      res.status(404).send("Not found");
+      return;
+    }
+
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    if (response.ContentType) res.setHeader("Content-Type", response.ContentType);
+    if (response.ContentLength) res.setHeader("Content-Length", response.ContentLength.toString());
+
+    // @ts-ignore - pipe from readable stream
+    response.Body.pipe(res);
   }
 }

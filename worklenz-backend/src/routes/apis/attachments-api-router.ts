@@ -14,6 +14,7 @@ attachmentsApiRouter.post("/tasks", taskAttachmentsValidator, safeControllerFunc
 attachmentsApiRouter.post("/avatar", avatarValidator, safeControllerFunction(imageToWebp), safeControllerFunction(AttachmentController.createAvatarAttachment));
 attachmentsApiRouter.get("/tasks/:id", idParamValidator, safeControllerFunction(AttachmentController.get));
 attachmentsApiRouter.get("/download", safeControllerFunction(AttachmentController.download));
+attachmentsApiRouter.get("/stream-download", safeControllerFunction(AttachmentController.streamDownload));
 attachmentsApiRouter.get("/project/:id", idParamValidator, safeControllerFunction(AttachmentController.getByProjectId));
 attachmentsApiRouter.delete("/tasks/:id", idParamValidator, safeControllerFunction(AttachmentController.deleteById));
 
