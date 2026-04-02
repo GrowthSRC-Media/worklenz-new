@@ -7,11 +7,19 @@ import WorklenzControllerBase from "./worklenz-controller-base";
 import HandleExceptions from "../decorators/handle-exceptions";
 import { NotificationsService } from "../services/notifications/notifications.service";
 import { humanFileSize, log_error, megabytesToBytes } from "../shared/utils";
-import { HTML_TAG_REGEXP, S3_URL, getStorageUrl } from "../shared/constants";
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { HTML_TAG_REGEXP, S3_URL, BUCKET, REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, getStorageUrl } from "../shared/constants";
 import { getBaseUrl } from "../cron_jobs/helpers";
 import { ICommentEmailNotification } from "../interfaces/comment-email-notification";
 import { sendTaskComment } from "../shared/email-notifications";
 import { getRootDir, uploadBase64, getKey, getTaskAttachmentKey, createPresignedUrlWithClient } from "../shared/s3";
+
+const commentDownloadS3Client = new S3Client({
+  region: REGION,
+  credentials: { accessKeyId: S3_ACCESS_KEY_ID || "", secretAccessKey: S3_SECRET_ACCESS_KEY || "" },
+  endpoint: S3_URL,
+  forcePathStyle: true,
+});
 import { getFreePlanSettings, getUsedStorage } from "../shared/paddle-utils";
 
 interface ITaskAssignee {
@@ -658,17 +666,35 @@ export default class TaskCommentsController extends WorklenzControllerBase {
 
   @HandleExceptions()
   public static async download(req: IWorkLenzRequest, res: IWorkLenzResponse): Promise<IWorkLenzResponse> {
+    if (req.query.id) {
+      const file = encodeURIComponent(req.query.file as string || "download");
+      const url = `/api/v1/task-comments/stream-download?id=${req.query.id}&file=${file}`;
+      return res.status(200).send(new ServerResponse(true, url));
+    }
+    return res.status(200).send(new ServerResponse(true, null));
+  }
+
+  @HandleExceptions()
+  public static async streamDownload(req: IWorkLenzRequest, res: any): Promise<void> {
     const q = `SELECT CONCAT($2::TEXT, '/', team_id, '/', project_id, '/', task_id, '/', comment_id, '/', id, '.', type) AS key
                FROM task_comment_attachments
                WHERE id = $1;`;
     const result = await db.query(q, [req.query.id, getRootDir()]);
     const [data] = result.rows;
 
-    if (data?.key) {
-      const url = await createPresignedUrlWithClient(data.key, req.query.file as string);
-      return res.status(200).send(new ServerResponse(true, url));
-    }
+    if (!data?.key) { res.status(404).send("Not found"); return; }
 
-    return res.status(200).send(new ServerResponse(true, null));
+    const fileName = decodeURIComponent(req.query.file as string || "download");
+    const command = new GetObjectCommand({ Bucket: BUCKET, Key: data.key });
+    const response = await commentDownloadS3Client.send(command);
+
+    if (!response.Body) { res.status(404).send("Not found"); return; }
+
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    if (response.ContentType) res.setHeader("Content-Type", response.ContentType);
+    if (response.ContentLength) res.setHeader("Content-Length", response.ContentLength.toString());
+
+    // @ts-ignore
+    response.Body.pipe(res);
   }
 }

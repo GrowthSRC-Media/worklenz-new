@@ -11,6 +11,7 @@ const taskCommentsApiRouter = express.Router();
 
 taskCommentsApiRouter.post("/", taskCommentBodyValidator, safeControllerFunction(TaskCommentsController.create));
 taskCommentsApiRouter.get("/download", safeControllerFunction(TaskCommentsController.download));
+taskCommentsApiRouter.get("/stream-download", safeControllerFunction(TaskCommentsController.streamDownload));
 taskCommentsApiRouter.get("/:id", idParamValidator, safeControllerFunction(TaskCommentsController.getByTaskId));
 taskCommentsApiRouter.delete("/attachment/:id/:taskId", idParamValidator, safeControllerFunction(TaskCommentsController.deleteAttachmentById));
 

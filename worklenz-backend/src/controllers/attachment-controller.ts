@@ -1,9 +1,10 @@
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { IWorkLenzRequest } from "../interfaces/worklenz-request";
 import { IWorkLenzResponse } from "../interfaces/worklenz-response";
 
 import db from "../config/db";
 import { humanFileSize, smallId } from "../shared/utils";
-import { getStorageUrl } from "../shared/constants";
+import { getStorageUrl, BUCKET, REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_URL } from "../shared/constants";
 import { ServerResponse } from "../models/server-response";
 import {
   createPresignedUrlWithClient,
@@ -16,6 +17,13 @@ import {
 } from "../shared/storage";
 import WorklenzControllerBase from "./worklenz-controller-base";
 import HandleExceptions from "../decorators/handle-exceptions";
+
+const downloadS3Client = new S3Client({
+  region: REGION,
+  credentials: { accessKeyId: S3_ACCESS_KEY_ID || "", secretAccessKey: S3_SECRET_ACCESS_KEY || "" },
+  endpoint: S3_URL,
+  forcePathStyle: true,
+});
 
 export default class AttachmentController extends WorklenzControllerBase {
 
@@ -144,18 +152,36 @@ export default class AttachmentController extends WorklenzControllerBase {
 
   @HandleExceptions()
   public static async download(req: IWorkLenzRequest, res: IWorkLenzResponse): Promise<IWorkLenzResponse> {
+    if (req.query.id) {
+      const file = encodeURIComponent(req.query.file as string || "download");
+      const url = `/api/v1/attachments/stream-download?id=${req.query.id}&file=${file}`;
+      return res.status(200).send(new ServerResponse(true, url));
+    }
+    return res.status(200).send(new ServerResponse(true, null));
+  }
+
+  @HandleExceptions()
+  public static async streamDownload(req: IWorkLenzRequest, res: any): Promise<void> {
     const q = `SELECT team_id, project_id, id, type
                FROM task_attachments
                WHERE id = $1;`;
     const result = await db.query(q, [req.query.id]);
     const [data] = result.rows;
 
-    if (data) {
-      const key = getKey(data.team_id, data.project_id, data.id, data.type);
-      const url = await createPresignedUrlWithClient(key, req.query.file as string);
-      return res.status(200).send(new ServerResponse(true, url));
-    }
+    if (!data) { res.status(404).send("Not found"); return; }
 
-    return res.status(200).send(new ServerResponse(true, null));
+    const key = getKey(data.team_id, data.project_id, data.id, data.type);
+    const fileName = decodeURIComponent(req.query.file as string || `${data.id}.${data.type}`);
+    const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
+    const response = await downloadS3Client.send(command);
+
+    if (!response.Body) { res.status(404).send("Not found"); return; }
+
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    if (response.ContentType) res.setHeader("Content-Type", response.ContentType);
+    if (response.ContentLength) res.setHeader("Content-Length", response.ContentLength.toString());
+
+    // @ts-ignore
+    response.Body.pipe(res);
   }
 }
