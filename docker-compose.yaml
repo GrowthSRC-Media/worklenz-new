@@ -18,70 +18,6 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  # MinIO Object Storage
-  minio:
-    image: minio/minio:latest
-    container_name: worklenz-minio
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
-      MINIO_BROWSER: ${MINIO_BROWSER:-on}
-    volumes:
-      - minio_data:/data
-    networks:
-      - worklenz-backend
-      - dokploy-network
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=dokploy-network
-      - traefik.http.routers.worklenz-minio-web.rule=Host(`${DOMAIN}`) && PathPrefix(`/minio`)
-      - traefik.http.routers.worklenz-minio-web.entrypoints=web
-      - traefik.http.routers.worklenz-minio-web.middlewares=redirect-to-https@file
-      - traefik.http.routers.worklenz-minio-websecure.rule=Host(`${DOMAIN}`) && PathPrefix(`/minio`)
-      - traefik.http.routers.worklenz-minio-websecure.entrypoints=websecure
-      - traefik.http.routers.worklenz-minio-websecure.tls.certresolver=letsencrypt
-      - traefik.http.middlewares.minio-stripprefix.stripprefix.prefixes=/minio
-      - traefik.http.routers.worklenz-minio-web.middlewares=redirect-to-https@file
-      - traefik.http.routers.worklenz-minio-websecure.middlewares=minio-stripprefix
-      - traefik.http.services.worklenz-minio.loadbalancer.server.port=9000
-      - traefik.http.routers.worklenz-minio-web.service=worklenz-minio
-      - traefik.http.routers.worklenz-minio-websecure.service=worklenz-minio
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-      start_period: 10s
-    security_opt:
-      - no-new-privileges:true
-
-  # MinIO Client - Create initial bucket
-  minio-init:
-    image: minio/mc:latest
-    container_name: worklenz-minio-init
-    restart: "no"
-    depends_on:
-      minio:
-        condition: service_healthy
-    environment:
-      MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
-      MINIO_BUCKET: ${AWS_BUCKET:-worklenz-bucket}
-    networks:
-      - worklenz-backend
-    entrypoint: >
-      /bin/sh -c "
-      echo 'Waiting for MinIO to be ready...';
-      sleep 5;
-      /usr/bin/mc alias set worklenz http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
-      /usr/bin/mc mb worklenz/$${MINIO_BUCKET} --ignore-existing;
-      /usr/bin/mc anonymous set download worklenz/$${MINIO_BUCKET};
-      echo 'MinIO bucket created and configured successfully';
-      exit 0;
-      "
-
   # Backend API
   backend:
     build:
@@ -245,8 +181,6 @@ networks:
 
 volumes:
   redis_data:
-    driver: local
-  minio_data:
     driver: local
   backend_logs:
     driver: local
