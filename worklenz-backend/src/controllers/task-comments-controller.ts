@@ -6,7 +6,7 @@ import { ServerResponse } from "../models/server-response";
 import WorklenzControllerBase from "./worklenz-controller-base";
 import HandleExceptions from "../decorators/handle-exceptions";
 import { NotificationsService } from "../services/notifications/notifications.service";
-import { humanFileSize, log_error, megabytesToBytes } from "../shared/utils";
+import { humanFileSize, log_error, megabytesToBytes, formatName } from "../shared/utils";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { HTML_TAG_REGEXP, S3_URL, BUCKET, REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, getStorageUrl } from "../shared/constants";
 import { getBaseUrl } from "../cron_jobs/helpers";
@@ -169,12 +169,12 @@ export default class TaskCommentsController extends WorklenzControllerBase {
       }
     }
 
-    const mentionMessage = `<b>${req.user?.name}</b> has mentioned you in a comment on <b>${response.task_name}</b> (${response.team_name})`;
+    const mentionMessage = `<b>${formatName(req.user?.name)}</b> has mentioned you in a comment on <b>${response.task_name}</b> (${response.team_name})`;
     // const mentions = [...new Set(req.body.mentions || [])] as string[]; // remove duplicates
 
     const assignees = await getAssignees(req.body.task_id);
 
-    const commentMessage = `<b>${req.user?.name}</b> added a comment on <b>${response.task_name}</b> (${response.team_name})`;
+    const commentMessage = `<b>${formatName(req.user?.name)}</b> added a comment on <b>${response.task_name}</b> (${response.team_name})`;
     for (const member of assignees || []) {
       if (member.user_id && member.user_id === req.user?.id) continue;
 
@@ -304,12 +304,12 @@ export default class TaskCommentsController extends WorklenzControllerBase {
 
     const response = data.comment;
 
-    const mentionMessage = `<b>${req.user?.name}</b> has mentioned you in a comment on <b>${response.task_name}</b> (${response.team_name})`;
+    const mentionMessage = `<b>${formatName(req.user?.name)}</b> has mentioned you in a comment on <b>${response.task_name}</b> (${response.team_name})`;
     // const mentions = [...new Set(req.body.mentions || [])] as string[]; // remove duplicates
 
     const assignees = await getAssignees(req.body.task_id);
 
-    const commentMessage = `<b>${req.user?.name}</b> added a comment on <b>${response.task_name}</b> (${response.team_name})`;
+    const commentMessage = `<b>${formatName(req.user?.name)}</b> added a comment on <b>${response.task_name}</b> (${response.team_name})`;
     for (const member of assignees || []) {
       if (member.user_id && member.user_id === req.user?.id) continue;
 
@@ -382,7 +382,7 @@ export default class TaskCommentsController extends WorklenzControllerBase {
     const settingsUrl = `${getBaseUrl()}/worklenz/settings/notifications`;
 
     const data: ICommentEmailNotification = {
-      greeting: `Hi ${config.receiverName}`,
+      greeting: `Hi ${formatName(config.receiverName)}`,
       summary: subject,
       team: config.teamName,
       project_name: config.projectName,
@@ -630,7 +630,7 @@ export default class TaskCommentsController extends WorklenzControllerBase {
 
     const assignees = await getAssignees(task_id);
 
-    const commentMessage = `<b>${req.user?.name}</b> added a new attachment as a comment on <b>${commentId.task_name}</b> (${commentId.team_name})`;
+    const commentMessage = `<b>${formatName(req.user?.name)}</b> added a new attachment as a comment on <b>${commentId.task_name}</b> (${commentId.team_name})`;
     const emailContent = req.body.content || "";
 
     for (const member of assignees || []) {

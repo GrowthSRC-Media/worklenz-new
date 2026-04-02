@@ -5,7 +5,7 @@ import db from "../config/db";
 import {ServerResponse} from "../models/server-response";
 import WorklenzControllerBase from "./worklenz-controller-base";
 import HandleExceptions from "../decorators/handle-exceptions";
-import {getColor, slugify} from "../shared/utils";
+import {getColor, slugify, formatName} from "../shared/utils";
 import { HTML_TAG_REGEXP } from "../shared/constants";
 import { IProjectCommentEmailNotification } from "../interfaces/comment-email-notification";
 import { sendProjectComment } from "../shared/email-notifications";
@@ -47,7 +47,7 @@ export default class ProjectCommentsController extends WorklenzControllerBase {
     const subject = config.message.replace(HTML_TAG_REGEXP, "");
 
     const data: IProjectCommentEmailNotification = {
-      greeting: `Hi ${config.receiverName}`,
+      greeting: `Hi ${formatName(config.receiverName)}`,
       summary: subject,
       team: config.teamName,
       project_name: config.projectName,

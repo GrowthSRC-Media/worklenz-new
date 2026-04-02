@@ -3,7 +3,7 @@ import moment from "moment";
 import db from "../config/db";
 import {IDailyDigest} from "../interfaces/daily-digest";
 import {sendDailyDigest} from "../shared/email-notifications";
-import {log_error} from "../shared/utils";
+import {log_error, formatName} from "../shared/utils";
 import {getBaseUrl, mapTeams} from "./helpers";
 
 // At 11:00+00 (4.30pm+530) on every day-of-month if it's on every day-of-week from Monday through Friday.
@@ -25,7 +25,7 @@ async function onDailyDigestJobTick() {
     let sentCount = 0;
 
     for (const digest of dataset) {
-      digest.greeting = `Hi ${digest.name},`;
+      digest.greeting = `Hi ${formatName(digest.name)},`;
       digest.note = `Here's your ${moment().format("dddd")} update!`;
       digest.base_url = `${getBaseUrl()}/worklenz`;
       digest.settings_url = `${getBaseUrl()}/worklenz/settings/notifications`;

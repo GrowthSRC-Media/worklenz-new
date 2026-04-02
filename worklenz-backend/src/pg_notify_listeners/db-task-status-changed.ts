@@ -4,6 +4,7 @@ import db from "../config/db";
 import {ITaskMovedToDoneRecord} from "../interfaces/task-moved-to-done";
 import {sendTaskDone} from "../shared/email-notifications";
 import {getBaseUrl} from "../cron_jobs/helpers";
+import {formatName} from "../shared/utils";
 
 export default class DbTaskStatusChangeListener {
   private static connected = false;
@@ -99,7 +100,7 @@ export default class DbTaskStatusChangeListener {
       };
 
       const payload: ITaskMovedToDoneRecord = {
-        greeting: `Hi ${data.user_name}`,
+        greeting: `Hi ${formatName(data.user_name)}`,
         summary: "Great news! a task just got completed!",
         settings_url: settingsUrl,
         task

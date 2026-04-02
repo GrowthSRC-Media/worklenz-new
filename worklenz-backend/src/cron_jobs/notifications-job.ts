@@ -5,7 +5,7 @@ import {CronJob} from "cron";
 import db from "../config/db";
 import {ITaskAssignmentsModel} from "../interfaces/task-assignments-model";
 import {sendAssignmentUpdate} from "../shared/email-notifications";
-import {log_error} from "../shared/utils";
+import {log_error, formatName} from "../shared/utils";
 import {getBaseUrl, mapProjects} from "./helpers";
 
 const TIME = "*/10 * * * *";
@@ -15,7 +15,7 @@ const log = (value: any) => console.log("notifications-cron-job:", value);
 function getModel(model: ITaskAssignmentsModel): ITaskAssignmentsModel {
   const mappedModel: ITaskAssignmentsModel = {...model};
 
-  mappedModel.name = mappedModel.name?.split(" ")[0] || "";
+  mappedModel.name = formatName(mappedModel.name?.split(" ")[0]) || "";
   mappedModel.url = `${getBaseUrl()}/worklenz/team/member/${mappedModel.team_member_id}`;
   mappedModel.settings_url = `${getBaseUrl()}/worklenz/settings/notifications`;
 

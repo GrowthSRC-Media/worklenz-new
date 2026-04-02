@@ -38,8 +38,7 @@ mixin taskSection(title, icon, teams)
                             tr
                               td(style='vertical-align:top;width:16px;padding-right:8px;color:#d1d5db;') &#9633;
                               td(style='vertical-align:top;')
-                                a(href=$task.url target='_blank' style=task_link)
-                                  !{$task.name}
+                                a(href=$task.url target='_blank' style=task_link)= $task.name
                                 if $task.members
                                   span(style=task_meta) &nbsp;#{$task.members}
 

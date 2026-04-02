@@ -1,6 +1,6 @@
 import {CronJob} from "cron";
 import db from "../config/db";
-import {log_error} from "../shared/utils";
+import {log_error, formatName} from "../shared/utils";
 import {getBaseUrl} from "./helpers";
 import {IProjectDigest, IProjectDigestTask} from "../interfaces/project-digest";
 import {sendProjectDailyDigest} from "../shared/email-notifications";
@@ -21,7 +21,7 @@ function updateTaskUrls(projectId: string, tasks: IProjectDigestTask[]) {
 }
 
 function updateMetadata(project: IProjectDigest, subscriberName: string) {
-  project.greeting = `Hi ${subscriberName},`;
+  project.greeting = `Hi ${formatName(subscriberName)},`;
   project.summary = `Here's the "${project.name}" summary | ${project.team_name}`;
   project.settings_url = `${getBaseUrl()}/worklenz/settings/notifications`;
   project.project_url = `${getBaseUrl()}/worklenz/projects/${project.id}?tab=tasks-list`;

@@ -85,6 +85,11 @@ export function toTsQuery(value: string) {
   return `${value.replace(/\s/g, "+").replace(/\(|\)/g, "")}:*`;
 }
 
+export function formatName(name: string | null | undefined): string {
+  if (!name) return "";
+  return name.trim().replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function nextChar(c: string) {
   return String.fromCharCode(c.charCodeAt(0) + 1);
 }

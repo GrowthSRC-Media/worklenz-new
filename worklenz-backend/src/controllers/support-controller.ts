@@ -109,14 +109,32 @@ export default class SupportController extends WorklenzControllerBase {
           headers: {
             "Content-Type": "application/json"
           },
-          timeout: 10000 // 10 seconds timeout
+          timeout: 10000
         });
-
-        return res.status(200).send(new ServerResponse(true, "Support request sent successfully"));
       } catch (webhookError: any) {
         log_error("Teams webhook error:", webhookError?.response?.data || webhookError.message);
-        return res.status(500).send(new ServerResponse(false, "Failed to send support notification"));
       }
+
+      // Send email to support
+      if (CONTACT_EMAIL) {
+        await sendEmail({
+          to: [CONTACT_EMAIL],
+          subject: `Support Request from ${userName} (${userEmail})`,
+          html: `
+            <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;">
+              <h3 style="color:#111827;">Support Request</h3>
+              <table style="width:100%;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;border-collapse:collapse;">
+                <tr><td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;color:#6b7280;width:120px;">Name</td><td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;color:#111827;">${userName}</td></tr>
+                <tr><td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;color:#6b7280;">Email</td><td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;color:#111827;">${userEmail}</td></tr>
+                <tr><td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;color:#6b7280;">Organization</td><td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;color:#111827;">${organizationName}</td></tr>
+                <tr><td style="padding:10px 16px;color:#6b7280;">Reason</td><td style="padding:10px 16px;color:#111827;">${reason || "Custom plan renewal/support"}</td></tr>
+              </table>
+            </div>
+          `
+        });
+      }
+
+      return res.status(200).send(new ServerResponse(true, "Support request sent successfully"));
 
     } catch (error) {
       log_error("Support controller error:", error);
