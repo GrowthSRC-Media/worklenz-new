@@ -5,7 +5,10 @@ import WorklenzControllerBase from "./worklenz-controller-base";
 import HandleExceptions from "../decorators/handle-exceptions";
 import axios from "axios";
 import { log_error } from "../shared/utils";
+import { sendEmail } from "../shared/email";
 import db from "../config/db";
+
+const CONTACT_EMAIL = process.env.CONTACT_US_EMAIL || "";
 
 export default class SupportController extends WorklenzControllerBase {
 

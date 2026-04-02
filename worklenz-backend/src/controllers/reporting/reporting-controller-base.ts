@@ -179,19 +179,20 @@ export default abstract class ReportingControllerBase extends WorklenzController
 
     // Check user's role
     const roleQuery = `
-      SELECT r.key 
+      SELECT r.admin_role, r.owner, r.default_role, r.name
       FROM roles r
       JOIN team_members tm ON tm.role_id = r.id
       WHERE tm.user_id = $1 AND tm.team_id = $2
+      LIMIT 1
     `;
     const roleResult = await db.query(roleQuery, [userId, teamId]);
 
     if (roleResult.rows.length === 0) return "";
 
-    const roleKey = roleResult.rows[0].key;
+    const role = roleResult.rows[0];
 
-    // Only apply filter for Team Leads
-    if (roleKey === 'TEAM_LEAD') {
+    // Admins and Owners can see all projects — only filter for regular members
+    if (!role.admin_role && !role.owner) {
       // Team Leads can only see projects they manage
       return `AND p.id IN (
         SELECT pm.project_id 
