@@ -35,6 +35,7 @@ import {
   CopyOutlined,
   message,
 } from '@/shared/antd-imports';
+import { copyTaskLink } from '@/utils/copyTaskLink';
 
 interface TaskContextMenuProps {
   task: Task;
@@ -328,18 +329,8 @@ const TaskContextMenu: React.FC<TaskContextMenuProps> = ({
   }, [task?.id, projectId, dispatch, onClose]);
 
   const handleCopyLink = useCallback(async () => {
-    if (!projectId || !task.id) return;
-
-    try {
-      const taskLink = `${window.location.origin}/worklenz/projects/${projectId}?tab=tasks-list&pinned_tab=tasks-list&task=${task.id}`;
-      await navigator.clipboard.writeText(taskLink);
-      message.success(t('contextMenu.linkCopied'));
-    } catch (error) {
-      logger.error('Error copying link:', error);
-      message.error(t('contextMenu.linkCopyFailed'));
-    } finally {
-      onClose();
-    }
+    await copyTaskLink(projectId, task.id, t);
+    onClose();
   }, [projectId, task.id, onClose, t]);
 
   const menuItems = useMemo(() => {

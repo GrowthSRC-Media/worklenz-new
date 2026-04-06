@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useState, useRef, useEffect } from 'react';
-import { RightOutlined, DoubleRightOutlined, ArrowsAltOutlined, CommentOutlined, EyeOutlined, PaperClipOutlined, MinusCircleOutlined, RetweetOutlined } from '@/shared/antd-imports';
+import { RightOutlined, DoubleRightOutlined, ArrowsAltOutlined, CommentOutlined, EyeOutlined, PaperClipOutlined, MinusCircleOutlined, RetweetOutlined, LinkOutlined } from '@/shared/antd-imports';
 import { Input, Tooltip } from '@/shared/antd-imports';
 import type { InputRef } from '@/shared/antd-imports';
 import { createPortal } from 'react-dom';
@@ -12,6 +12,7 @@ import { SocketEvents } from '@/shared/socket-events';
 import { useTranslation } from 'react-i18next';
 import { getTaskDisplayName } from './TaskRowColumns';
 import TaskContextMenu from './TaskContextMenu';
+import { copyTaskLink } from '@/utils/copyTaskLink';
 
 interface TitleColumnProps {
   width: string;
@@ -270,6 +271,18 @@ export const TitleColumn: React.FC<TitleColumnProps> = memo(({
             </div>
           </div>
           
+          <Tooltip title={t('contextMenu.copyLink')}>
+            <button
+              className="opacity-0 group-hover:opacity-100 transition-all duration-200 ml-2 px-2 py-1.5 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 cursor-pointer rounded-md shadow-sm hover:shadow-md flex items-center gap-1 flex-shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                copyTaskLink(projectId, task.id, t);
+              }}
+            >
+              <LinkOutlined />
+            </button>
+          </Tooltip>
+
           <button
             className="opacity-0 group-hover:opacity-100 transition-all duration-200 ml-2 mr-2 px-3 py-1.5 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 cursor-pointer rounded-md shadow-sm hover:shadow-md flex items-center gap-1 flex-shrink-0"
             onClick={(e) => {

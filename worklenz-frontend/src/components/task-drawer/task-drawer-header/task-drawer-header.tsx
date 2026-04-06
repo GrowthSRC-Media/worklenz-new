@@ -1,7 +1,8 @@
 import { Button, Dropdown, Flex, Input, InputRef, MenuProps, Tooltip } from '@/shared/antd-imports';
 import React, { ChangeEvent, useEffect, useRef, useState } from 'react';
-import { EllipsisOutlined } from '@/shared/antd-imports';
+import { EllipsisOutlined, LinkOutlined } from '@/shared/antd-imports';
 import { TFunction } from 'i18next';
+import { copyTaskLink } from '@/utils/copyTaskLink';
 
 import './task-drawer-header.css';
 
@@ -100,7 +101,20 @@ const TaskDrawerHeader = ({ inputRef, t }: TaskDrawerHeaderProps) => {
     }
   };
 
+  const handleCopyLink = () =>
+    copyTaskLink(taskFormViewModel?.task?.project_id, selectedTaskId);
+
   const deletTaskDropdownItems: MenuProps['items'] = [
+    {
+      key: 'copy-link',
+      label: (
+        <Flex gap={8} align="center">
+          <Button type="text" icon={<LinkOutlined />} onClick={handleCopyLink}>
+            Copy link to task
+          </Button>
+        </Flex>
+      ),
+    },
     {
       key: '1',
       label: (
