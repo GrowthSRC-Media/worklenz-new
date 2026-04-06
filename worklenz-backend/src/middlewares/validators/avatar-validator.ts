@@ -7,7 +7,7 @@ import {ServerResponse} from "../../models/server-response";
 export default function (req: IWorkLenzRequest, res: IWorkLenzResponse, next: NextFunction): IWorkLenzResponse | void {
   const {file, file_name, size} = req.body;
 
-  if (!file || !file_name || !size)
+  if (!file || !file_name || size == null)
     return res.status(200).send(new ServerResponse(false, null, "Upload failed"));
 
   if (size > 200000)

@@ -9,7 +9,7 @@ import { megabytesToBytes } from "../../shared/utils";
 export default async function (req: IWorkLenzRequest, res: IWorkLenzResponse, next: NextFunction): Promise<IWorkLenzResponse | void> {
   const { file, file_name, project_id, size } = req.body;
 
-  if (!file || !file_name || !project_id || !size)
+  if (!file || !file_name || !project_id || size == null)
     return res.status(200).send(new ServerResponse(false, null, "Upload failed"));
 
   if (size > 5.243e+7)
