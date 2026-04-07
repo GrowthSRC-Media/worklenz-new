@@ -1,19 +1,19 @@
 import { Typography } from '@/shared/antd-imports';
-import { markdownToPlainText } from '@/utils/markdown';
+import DOMPurify from 'dompurify';
 
 const TaskListDescriptionCell = ({ description }: { description: string }) => {
-  const preview = markdownToPlainText(description);
+  const sanitizedDescription = DOMPurify.sanitize(description);
 
   return (
     <Typography.Paragraph
       ellipsis={{
         expandable: false,
         rows: 1,
-        tooltip: preview,
+        tooltip: description,
       }}
       style={{ width: 260, marginBlockEnd: 0 }}
     >
-      {preview}
+      <span dangerouslySetInnerHTML={{ __html: sanitizedDescription }} />
     </Typography.Paragraph>
   );
 };

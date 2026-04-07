@@ -172,6 +172,36 @@ export default class TaskCommentsController extends WorklenzControllerBase {
     const mentionMessage = `<b>${formatName(req.user?.name)}</b> has mentioned you in a comment on <b>${response.task_name}</b> (${response.team_name})`;
     // const mentions = [...new Set(req.body.mentions || [])] as string[]; // remove duplicates
 
+    const assignees = await getAssignees(req.body.task_id);
+
+    const commentMessage = `<b>${formatName(req.user?.name)}</b> added a comment on <b>${response.task_name}</b> (${response.team_name})`;
+    for (const member of assignees || []) {
+      if (member.user_id && member.user_id === req.user?.id) continue;
+
+      void NotificationsService.createNotification({
+        userId: member.user_id,
+        teamId: req.user?.team_id as string,
+        socketId: member.socket_id,
+        message: commentMessage,
+        taskId: req.body.task_id,
+        projectId: response.project_id
+      });
+
+      if (member.email_notifications_enabled)
+        await this.sendMail({
+          message: commentMessage,
+          receiverEmail: member.email,
+          receiverName: member.name,
+          content: emailContent,
+          commentId: response.id,
+          projectId: response.project_id,
+          taskId: req.body.task_id,
+          teamName: response.team_name,
+          projectName: response.project_name,
+          taskName: response.task_name
+        });
+    }
+
     const senderUserId = req.user?.id as string;
 
     for (const mention of mentions) {
@@ -238,7 +268,7 @@ export default class TaskCommentsController extends WorklenzControllerBase {
       id: response.id,
       member_name: req.user?.name || "",
       mentions: mentions || [],
-      rawContent: emailContent,
+      rawContent: req.body.content,
       reactions: {
         likes: {
           count: 0,
@@ -378,7 +408,6 @@ export default class TaskCommentsController extends WorklenzControllerBase {
     const url = `${getStorageUrl()}/${getRootDir()}`;
 
     const q = `SELECT task_comments.id,
-                    task_comments.task_id,
                     tc.text_content AS content,
                     task_comments.user_id,
                     task_comments.team_member_id,
@@ -430,17 +459,18 @@ export default class TaskCommentsController extends WorklenzControllerBase {
 
     for (const comment of result.rows) {
       if (!comment.content) comment.content = "";
-      comment.rawContent = comment.content;
+      comment.rawContent = await comment.content;
+      comment.content = await comment.content.replace(/\n/g, "</br>");
       comment.edit = false;
       const { mentions } = comment;
       if (mentions.length > 0) {
-        const placeHolders = comment.rawContent.match(/{\d+}/g);
+        const placeHolders = comment.content.match(/{\d+}/g);
         if (placeHolders) {
           placeHolders.forEach((placeHolder: { match: (arg0: RegExp) => string[]; }) => {
             const index = parseInt(placeHolder.match(/\d+/)[0]);
             if (index >= 0 && index < comment.mentions.length) {
               comment.rawContent = comment.rawContent.replace(placeHolder, `@${comment.mentions[index].user_name}`);
-              comment.content = comment.content.replace(placeHolder, `@${comment.mentions[index].user_name}`);
+              comment.content = comment.content.replace(placeHolder, `<span class="mentions"> @${comment.mentions[index].user_name} </span>`);
             }
           });
         }

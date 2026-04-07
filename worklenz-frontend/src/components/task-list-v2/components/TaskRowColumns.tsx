@@ -14,7 +14,6 @@ import TaskTimeTracking from '../TaskTimeTracking';
 import { CustomNumberLabel, CustomColordLabel } from '@/components';
 import LabelsSelector from '@/components/LabelsSelector';
 import { CustomColumnCell } from './CustomColumnComponents';
-import { markdownToPlainText } from '@/utils/markdown';
 
 // Utility function to get task display name with fallbacks
 export const getTaskDisplayName = (task: Task): string => {
@@ -126,27 +125,22 @@ interface DescriptionColumnProps {
   description: string;
 }
 
-export const DescriptionColumn: React.FC<DescriptionColumnProps> = memo(({ width, description }) => {
-  const preview = markdownToPlainText(description || '');
-
-  return (
-    <div className="flex items-center px-2 border-r border-gray-200 dark:border-gray-700" style={{ width }}>
-      <div
-        className="text-sm text-gray-600 dark:text-gray-400 truncate w-full"
-        style={{
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          maxHeight: '24px',
-          lineHeight: '24px',
-        }}
-        title={preview}
-      >
-        {preview}
-      </div>
-    </div>
-  );
-});
+export const DescriptionColumn: React.FC<DescriptionColumnProps> = memo(({ width, description }) => (
+  <div className="flex items-center px-2 border-r border-gray-200 dark:border-gray-700" style={{ width }}>
+    <div
+      className="text-sm text-gray-600 dark:text-gray-400 truncate w-full"
+      style={{
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        maxHeight: '24px',
+        lineHeight: '24px',
+      }}
+      title={description || ''}
+      dangerouslySetInnerHTML={{ __html: description || '' }}
+    />
+  </div>
+));
 
 DescriptionColumn.displayName = 'DescriptionColumn';
 

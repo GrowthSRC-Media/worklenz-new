@@ -1,26 +1,42 @@
 import { useState, useEffect } from 'react';
-import { Button, Form, Input, Space, Typography } from '@/shared/antd-imports';
+import { Button, Form, Input, Space } from '@/shared/antd-imports';
 import { ITaskCommentViewModel } from '@/types/tasks/task-comments.types';
 import taskCommentsApiService from '@/api/tasks/task-comments.api.service';
 import logger from '@/utils/errorLogger';
 import { useAppSelector } from '@/hooks/useAppSelector';
 import { themeWiseColor } from '@/utils/themeWiseColor';
 import { colors } from '@/styles/colors';
+import { useSocket } from '@/socket/socketContext';
+import { SocketEvents } from '@/shared/socket-events';
 
 interface TaskViewCommentEditProps {
   commentData: ITaskCommentViewModel;
   onUpdated: (comment: ITaskCommentViewModel) => void;
 }
 
+// Helper function to prepare content for editing by removing HTML tags
+const prepareContentForEditing = (content: string): string => {
+  if (!content) return '';
+
+  // Replace mention spans with plain @mentions
+  const withoutMentionSpans = content.replace(/<span class="mentions">@(\w+)<\/span>/g, '@$1');
+
+  // Remove any other HTML tags
+  return withoutMentionSpans.replace(/<[^>]*>/g, '');
+};
+
 const TaskViewCommentEdit = ({ commentData, onUpdated }: TaskViewCommentEditProps) => {
   const themeMode = useAppSelector(state => state.themeReducer.mode);
   const [loading, setLoading] = useState(false);
   const [content, setContent] = useState('');
+  const { socket, connected } = useSocket();
 
   // Initialize content when component mounts
   useEffect(() => {
-    setContent(commentData.rawContent || commentData.content || '');
-  }, [commentData.rawContent, commentData.content]);
+    if (commentData.content) {
+      setContent(prepareContentForEditing(commentData.content));
+    }
+  }, [commentData.content]);
 
   const handleCancel = () => {
     commentData.edit = false;
@@ -33,15 +49,12 @@ const TaskViewCommentEdit = ({ commentData, onUpdated }: TaskViewCommentEditProp
     try {
       setLoading(true);
       const res = await taskCommentsApiService.update(commentData.id, {
+        ...commentData,
         content: content,
-        task_id: commentData.task_id,
-        comment_id: commentData.id,
-        mentions: [],
       });
 
       if (res.done) {
         commentData.content = content;
-        commentData.rawContent = content;
         onUpdated(commentData);
 
         // Dispatch event to notify that a comment was updated
@@ -72,13 +85,8 @@ const TaskViewCommentEdit = ({ commentData, onUpdated }: TaskViewCommentEditProp
             onChange={e => setContent(e.target.value)}
             autoSize={{ minRows: 3, maxRows: 6 }}
             style={textAreaStyle}
-            placeholder="Edit comment with Markdown..."
+            placeholder="Type your comment here... Use @username to mention someone"
           />
-        </Form.Item>
-        <Form.Item style={{ marginBottom: 8 }}>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            Markdown supported. Mentions entered while editing are saved as text.
-          </Typography.Text>
         </Form.Item>
         <Form.Item>
           <Space>

@@ -14,7 +14,6 @@ export interface ITaskAttachmentCreateRequest {
 
 export interface ITaskComment {
   id?: string;
-  comment_id?: string;
   content?: string;
   rawContent?: string;
   user_id?: string;
@@ -22,7 +21,6 @@ export interface ITaskComment {
   task_id?: string;
   created_at?: string;
   updated_at?: string;
-  mentions?: any[];
 }
 
 export interface ITaskCommentViewModel extends ITaskComment {

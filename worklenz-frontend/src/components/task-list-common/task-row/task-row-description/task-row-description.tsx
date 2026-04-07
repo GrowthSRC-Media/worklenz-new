@@ -1,8 +1,6 @@
-import { markdownToPlainText } from '@/utils/markdown';
+import { Typography } from '@/shared/antd-imports';
 
 const TaskRowDescription = ({ description }: { description: string }) => {
-  const preview = markdownToPlainText(description);
-
   return (
     <div
       style={{
@@ -13,10 +11,8 @@ const TaskRowDescription = ({ description }: { description: string }) => {
         maxHeight: '24px', // Enforce single line height
         lineHeight: '24px',
       }}
-      title={preview}
-    >
-      {preview}
-    </div>
+      dangerouslySetInnerHTML={{ __html: description }}
+    />
   );
 };
 
