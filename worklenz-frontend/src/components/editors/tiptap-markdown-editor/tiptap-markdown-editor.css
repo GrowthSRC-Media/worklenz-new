@@ -33,11 +33,24 @@
   margin-bottom: 0;
 }
 .tiptap-md-wrapper .ProseMirror ul,
-.tiptap-md-wrapper .ProseMirror ol,
-.tiptap-md-view .ProseMirror ul,
-.tiptap-md-view .ProseMirror ol {
-  padding-left: 20px;
+.tiptap-md-view .ProseMirror ul {
+  padding-left: 24px;
   margin: 0 0 8px 0;
+  list-style: disc outside;
+}
+.tiptap-md-wrapper .ProseMirror ol,
+.tiptap-md-view .ProseMirror ol {
+  padding-left: 24px;
+  margin: 0 0 8px 0;
+  list-style: decimal outside;
+}
+.tiptap-md-wrapper .ProseMirror li,
+.tiptap-md-view .ProseMirror li {
+  display: list-item;
+}
+.tiptap-md-wrapper .ProseMirror li > p,
+.tiptap-md-view .ProseMirror li > p {
+  margin: 0;
 }
 .tiptap-md-wrapper .ProseMirror code,
 .tiptap-md-view .ProseMirror code {

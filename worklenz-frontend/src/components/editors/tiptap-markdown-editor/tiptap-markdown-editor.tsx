@@ -59,11 +59,20 @@ const TiptapMarkdownEditor = ({
   const themeMode = useAppSelector(state => state.themeReducer.mode);
   const lastEmitted = useRef<string>(value || '');
 
+  const initialValue = useRef(value || '');
   const editor = useEditor({
     extensions: buildExtensions(placeholder),
     content: '',
     editable,
     autofocus: autoFocus ? 'end' : false,
+    onCreate: ({ editor }) => {
+      // tiptap-markdown only intercepts setContent, so we must seed via the
+      // command (not the `content` option) for markdown to be parsed.
+      if (initialValue.current) {
+        editor.commands.setContent(initialValue.current, false);
+        lastEmitted.current = initialValue.current;
+      }
+    },
     onUpdate: ({ editor }) => {
       const md = getMd(editor);
       if (maxLength && md.length > maxLength) return;
@@ -74,18 +83,6 @@ const TiptapMarkdownEditor = ({
       onBlur?.(getMd(editor));
     },
   });
-
-  // Initial parse: tiptap-markdown only intercepts `setContent`, not the
-  // `content` option passed to useEditor — so we must set it explicitly.
-  const didInit = useRef(false);
-  useEffect(() => {
-    if (!editor || didInit.current) return;
-    didInit.current = true;
-    if (value) {
-      editor.commands.setContent(value, false);
-      lastEmitted.current = value;
-    }
-  }, [editor, value]);
 
   // Editor is uncontrolled after init: re-parsing markdown mid-edit collapses
   // in-progress structures (empty list items, paragraph breaks). Parents that
@@ -124,16 +121,12 @@ export const MarkdownView = ({ value, className }: MarkdownViewProps) => {
       extensions: buildExtensions(),
       content: '',
       editable: false,
+      onCreate: ({ editor }) => {
+        if (value) editor.commands.setContent(value, false);
+      },
     },
     [value]
   );
-
-  // Parse markdown via the Markdown extension's setContent override.
-  useEffect(() => {
-    if (editor && value) {
-      editor.commands.setContent(value, false);
-    }
-  }, [editor, value]);
 
   return (
     <div className={`tiptap-md-view theme-${themeMode} ${className || ''}`}>
