@@ -84,3 +84,5 @@ backups/
 *.bak
 *.tmp
 nginx/conf.d/*.bak
+
+.ignore

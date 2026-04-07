@@ -58,7 +58,7 @@ const TiptapMarkdownEditor = ({
 
   const editor = useEditor({
     extensions: buildExtensions(placeholder),
-    content: value || '',
+    content: '',
     editable,
     autofocus: autoFocus ? 'end' : false,
     onUpdate: ({ editor }) => {
@@ -72,9 +72,21 @@ const TiptapMarkdownEditor = ({
     },
   });
 
+  // Initial parse: tiptap-markdown only intercepts `setContent`, not the
+  // `content` option passed to useEditor — so we must set it explicitly.
+  const didInit = useRef(false);
+  useEffect(() => {
+    if (!editor || didInit.current) return;
+    didInit.current = true;
+    if (value) {
+      editor.commands.setContent(value, false);
+      lastEmitted.current = value;
+    }
+  }, [editor, value]);
+
   // Sync external value changes (e.g. switching tasks)
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || !didInit.current) return;
     const current = getMd(editor);
     if ((value || '') !== current && (value || '') !== lastEmitted.current) {
       editor.commands.setContent(value || '', false);
@@ -112,11 +124,18 @@ export const MarkdownView = ({ value, className }: MarkdownViewProps) => {
   const editor = useEditor(
     {
       extensions: buildExtensions(),
-      content: value || '',
+      content: '',
       editable: false,
     },
     [value]
   );
+
+  // Parse markdown via the Markdown extension's setContent override.
+  useEffect(() => {
+    if (editor && value) {
+      editor.commands.setContent(value, false);
+    }
+  }, [editor, value]);
 
   return (
     <div className={`tiptap-md-view theme-${themeMode} ${className || ''}`}>
