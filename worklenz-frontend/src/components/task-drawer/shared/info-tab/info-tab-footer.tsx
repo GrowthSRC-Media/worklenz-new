@@ -1,4 +1,6 @@
-import { Button, Flex, Form, Mentions, Space, Tooltip, Typography, message } from '@/shared/antd-imports';
+import { Button, Flex, Form, Space, Tooltip, Typography, message } from '@/shared/antd-imports';
+import TiptapMarkdownEditor from '@/components/editors/tiptap-markdown-editor/tiptap-markdown-editor';
+import { extractMentionsFromMarkdown, stripMarkdown } from '@/utils/markdown';
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PaperClipOutlined, DeleteOutlined, PlusOutlined } from '@/shared/antd-imports';
@@ -6,9 +8,6 @@ import { useAppSelector } from '@/hooks/useAppSelector';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
 import { colors } from '@/styles/colors';
 import { themeWiseColor } from '@/utils/themeWiseColor';
-import {
-  IMentionMemberSelectOption,
-} from '@/types/project/projectComments.types';
 import { ITaskCommentsCreateRequest } from '@/types/tasks/task-comments.types';
 import { ITaskAttachment } from '@/types/tasks/task-attachment-view-model';
 import logger from '@/utils/errorLogger';
@@ -52,9 +51,6 @@ const InfoTabFooter = () => {
   const [members, setMembers] = useState<ITeamMember[]>([]);
   const [membersLoading, setMembersLoading] = useState<boolean>(false);
 
-  const [selectedMembers, setSelectedMembers] = useState<
-    { team_member_id: string; name: string }[]
-  >([]);
   const [commentValue, setCommentValue] = useState<string>('');
   const [uploading, setUploading] = useState<boolean>(false);
 
@@ -100,7 +96,6 @@ const InfoTabFooter = () => {
     setSelectedFiles([]);
     setAttachmentComment(false);
     setCommentValue('');
-    setSelectedMembers([]);
   };
 
   // Check if comment is valid (either has text or files)
@@ -124,35 +119,9 @@ const InfoTabFooter = () => {
     }
   }, [projectId]);
 
-  // mentions options
-  const mentionsOptions =
-    members?.map(member => ({
-      value: member.name,
-      label: member.name,
-      key: member.id,
-    })) ?? [];
-
-  const memberSelectHandler = useCallback(
-    (member: IMentionMemberSelectOption) => {
-      if (!member?.value || !member?.label) return;
-
-      // Find the member ID from the members list using the name
-      const selectedMember = members.find(m => m.name === member.value);
-      if (!selectedMember) return;
-
-      // Add to selected members if not already present
-      setSelectedMembers(prev =>
-        prev.some(mention => mention.team_member_id === selectedMember.id)
-          ? prev
-          : [...prev, { team_member_id: selectedMember.id!, name: selectedMember.name! }]
-      );
-    },
-    [members]
-  );
-
   const handleCommentChange = useCallback((value: string) => {
     setCommentValue(value);
-    setCharacterLength(value.trim().length);
+    setCharacterLength(stripMarkdown(value).length);
   }, []);
 
   const handleSubmit = useCallback(async () => {
@@ -165,12 +134,14 @@ const InfoTabFooter = () => {
 
     try {
       setUploading(true);
+      const mentions = extractMentionsFromMarkdown(
+        commentValue,
+        members.map(m => ({ id: m.id, name: m.name }))
+      );
       const body: ITaskCommentsCreateRequest = {
         task_id: selectedTaskId,
         content: commentValue || '',
-        mentions: Array.from(new Set(selectedMembers.map(member => JSON.stringify(member)))).map(
-          str => JSON.parse(str)
-        ),
+        mentions,
         attachments: selectedFiles,
       };
 
@@ -182,7 +153,6 @@ const InfoTabFooter = () => {
         setAttachmentComment(false);
         setIsCommentBoxExpand(false);
         setCommentValue('');
-        setSelectedMembers([]);
         
         // Dispatch event to notify that a comment was created
         // This will trigger the task comments component to refresh and update Redux
@@ -197,7 +167,7 @@ const InfoTabFooter = () => {
     }
   }, [
     commentValue,
-    selectedMembers,
+    members,
     selectedFiles,
     selectedTaskId,
     projectId,
@@ -301,26 +271,15 @@ const InfoTabFooter = () => {
             transition: 'all 0.3s ease-in-out',
           }}
         >
-          <Mentions
-            placeholder={t('taskInfoTab.comments.addCommentPlaceholder')}
-            options={mentionsOptions}
-            autoSize
-            maxLength={5000}
-            onClick={() => setIsCommentBoxExpand(true)}
-            onChange={e => setCharacterLength(e.length)}
-            prefix="@"
-            filterOption={(input, option) => {
-              if (!input) return true;
-              const optionLabel = (option as any)?.label || '';
-              return optionLabel.toLowerCase().includes(input.toLowerCase());
-            }}
-            style={{
-              minHeight: 60,
-              resize: 'none',
-              borderRadius: 4,
-              transition: 'all 0.3s ease-in-out',
-            }}
-          />
+          <div onClick={() => setIsCommentBoxExpand(true)}>
+            <TiptapMarkdownEditor
+              value={commentValue}
+              onChange={handleCommentChange}
+              placeholder={t('taskInfoTab.comments.addCommentPlaceholder')}
+              minHeight={60}
+              maxLength={5000}
+            />
+          </div>
         </Flex>
       ) : (
         // Expanded state - textarea with buttons
@@ -399,31 +358,14 @@ const InfoTabFooter = () => {
           )}
 
           <Form.Item name={'comment'} style={{ marginBlock: 12 }}>
-            <div>
-              <Mentions
-                placeholder={t('taskInfoTab.comments.addCommentPlaceholder')}
-                options={mentionsOptions}
-                autoSize
-                autoFocus
-                maxLength={5000}
+            <div style={{ position: 'relative' }}>
+              <TiptapMarkdownEditor
                 value={commentValue}
-                onSelect={option => memberSelectHandler(option as IMentionMemberSelectOption)}
                 onChange={handleCommentChange}
-                prefix="@"
-                filterOption={(input, option) => {
-                  if (!input) return true;
-                  const optionLabel = (option as any)?.label || '';
-                  return optionLabel.toLowerCase().includes(input.toLowerCase());
-                }}
-                style={{
-                  minHeight: 100,
-                  maxHeight: 200,
-                  overflow: 'auto',
-                  paddingBlockEnd: 24,
-                  resize: 'none',
-                  borderRadius: 4,
-                  transition: 'all 0.3s ease-in-out',
-                }}
+                placeholder={t('taskInfoTab.comments.addCommentPlaceholder')}
+                autoFocus
+                minHeight={100}
+                maxLength={5000}
               />
               <span
                 style={{
@@ -432,6 +374,7 @@ const InfoTabFooter = () => {
                   right: 12,
                   color: colors.lightGray,
                   fontSize: 12,
+                  pointerEvents: 'none',
                 }}
               >{`${characterLength}/5000`}</span>
             </div>

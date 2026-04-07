@@ -1,41 +1,37 @@
 import { useState, useEffect } from 'react';
-import { Button, Form, Input, Space } from '@/shared/antd-imports';
+import { Button, Form, Space } from '@/shared/antd-imports';
 import { ITaskCommentViewModel } from '@/types/tasks/task-comments.types';
 import taskCommentsApiService from '@/api/tasks/task-comments.api.service';
 import logger from '@/utils/errorLogger';
 import { useAppSelector } from '@/hooks/useAppSelector';
-import { themeWiseColor } from '@/utils/themeWiseColor';
-import { colors } from '@/styles/colors';
-import { useSocket } from '@/socket/socketContext';
-import { SocketEvents } from '@/shared/socket-events';
+import TiptapMarkdownEditor from '@/components/editors/tiptap-markdown-editor/tiptap-markdown-editor';
+import { extractMentionsFromMarkdown, isLikelyHtml } from '@/utils/markdown';
 
 interface TaskViewCommentEditProps {
   commentData: ITaskCommentViewModel;
   onUpdated: (comment: ITaskCommentViewModel) => void;
 }
 
-// Helper function to prepare content for editing by removing HTML tags
+// Convert legacy HTML comment content to a plain markdown-friendly seed.
 const prepareContentForEditing = (content: string): string => {
   if (!content) return '';
-
-  // Replace mention spans with plain @mentions
-  const withoutMentionSpans = content.replace(/<span class="mentions">@(\w+)<\/span>/g, '@$1');
-
-  // Remove any other HTML tags
-  return withoutMentionSpans.replace(/<[^>]*>/g, '');
+  if (!isLikelyHtml(content)) return content;
+  return content
+    .replace(/<span class="mentions">\s*@(\w+)\s*<\/span>/g, '@$1')
+    .replace(/<\/?br\s*\/?>(\n)?/gi, '\n')
+    .replace(/<\/p>\s*<p>/gi, '\n\n')
+    .replace(/<[^>]*>/g, '')
+    .trim();
 };
 
 const TaskViewCommentEdit = ({ commentData, onUpdated }: TaskViewCommentEditProps) => {
   const themeMode = useAppSelector(state => state.themeReducer.mode);
+  const projectMembersList = useAppSelector(state => state.projectMemberReducer.membersList);
   const [loading, setLoading] = useState(false);
   const [content, setContent] = useState('');
-  const { socket, connected } = useSocket();
 
-  // Initialize content when component mounts
   useEffect(() => {
-    if (commentData.content) {
-      setContent(prepareContentForEditing(commentData.content));
-    }
+    setContent(prepareContentForEditing(commentData.content || ''));
   }, [commentData.content]);
 
   const handleCancel = () => {
@@ -48,19 +44,26 @@ const TaskViewCommentEdit = ({ commentData, onUpdated }: TaskViewCommentEditProp
 
     try {
       setLoading(true);
+      const mentions = extractMentionsFromMarkdown(
+        content,
+        (projectMembersList || []).map(m => ({ id: (m as any).team_member_id, name: m.name }))
+      );
+
       const res = await taskCommentsApiService.update(commentData.id, {
         ...commentData,
-        content: content,
-      });
+        comment_id: commentData.id,
+        content,
+        mentions,
+      } as any);
 
       if (res.done) {
         commentData.content = content;
+        commentData.is_edited = true;
         onUpdated(commentData);
 
-        // Dispatch event to notify that a comment was updated
-        document.dispatchEvent(new CustomEvent('task-comment-update', { 
-          detail: { taskId: commentData.task_id } 
-        }));
+        document.dispatchEvent(
+          new CustomEvent('task-comment-update', { detail: { taskId: commentData.task_id } })
+        );
       }
     } catch (e) {
       logger.error('Error updating comment', e);
@@ -69,29 +72,22 @@ const TaskViewCommentEdit = ({ commentData, onUpdated }: TaskViewCommentEditProp
     }
   };
 
-  // Theme-aware styles
-  const textAreaStyle = {
-    backgroundColor: themeWiseColor('#fff', '#2a2a2a', themeMode),
-    color: themeWiseColor('#333', '#d1d0d3', themeMode),
-    borderColor: themeWiseColor('#d9d9d9', '#333', themeMode),
-  };
-
   return (
     <div className={`comment-edit-${themeMode}`}>
       <Form layout="vertical">
         <Form.Item>
-          <Input.TextArea
+          <TiptapMarkdownEditor
             value={content}
-            onChange={e => setContent(e.target.value)}
-            autoSize={{ minRows: 3, maxRows: 6 }}
-            style={textAreaStyle}
-            placeholder="Type your comment here... Use @username to mention someone"
+            onChange={setContent}
+            placeholder="Edit your comment... (markdown supported, @username to mention)"
+            autoFocus
+            minHeight={100}
           />
         </Form.Item>
         <Form.Item>
           <Space>
             <Button onClick={handleCancel}>Cancel</Button>
-            <Button type="primary" loading={loading} onClick={handleSave}>
+            <Button type="primary" loading={loading} onClick={handleSave} disabled={!content.trim()}>
               Save
             </Button>
           </Space>

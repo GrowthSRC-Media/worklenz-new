@@ -287,22 +287,64 @@ export default class TaskCommentsController extends WorklenzControllerBase {
   public static async update(req: IWorkLenzRequest, res: IWorkLenzResponse): Promise<IWorkLenzResponse> {
     req.body.user_id = req.user?.id;
     req.body.team_id = req.user?.team_id;
-    const { mentions, comment_id } = req.body;
+    const commentId = req.params.id || req.body.comment_id || req.body.id;
+    const mentions: IMention[] = req.body.mentions || [];
 
-    const originalContent = req.body.content;
-    let commentContent = req.body.content;
+    const originalContent: string = req.body.content || "";
+    let commentContent = originalContent;
     if (mentions.length > 0) {
-      commentContent = await this.replaceContent(commentContent, mentions);
+      commentContent = this.replaceContent(commentContent, mentions);
     }
 
-    req.body.content = commentContent;
+    // Authorization: only the comment author may edit.
+    const ownerCheck = await db.query(
+      `SELECT tc.user_id, t.project_id, t.name AS task_name, t.id AS task_id,
+              (SELECT name FROM teams WHERE id = $2) AS team_name,
+              (SELECT name FROM projects WHERE id = t.project_id) AS project_name
+         FROM task_comments tc LEFT JOIN tasks t ON t.id = tc.task_id WHERE tc.id = $1;`,
+      [commentId, req.user?.team_id]
+    );
+    const owner = ownerCheck.rows[0];
+    if (!owner || owner.user_id !== req.user?.id) {
+      return res.status(200).send(new ServerResponse(false, null, "Not allowed"));
+    }
+
+    // Update content and bump updated_at on the parent comment.
+    await db.query(
+      `UPDATE task_comment_contents SET text_content = $2 WHERE comment_id = $1;`,
+      [commentId, commentContent]
+    );
+    await db.query(
+      `UPDATE task_comments SET updated_at = CURRENT_TIMESTAMP WHERE id = $1;`,
+      [commentId]
+    );
+
+    // Replace mention rows so notifications stay in sync with edited content.
+    await db.query(`DELETE FROM task_comment_mentions WHERE comment_id = $1;`, [commentId]);
+    // Resolve sender's team_member_id once for the mentioned_by FK.
+    const senderTm = await db.query(
+      `SELECT id FROM team_members WHERE user_id = $1 AND team_id = $2 LIMIT 1;`,
+      [req.user?.id, req.user?.team_id]
+    );
+    const senderTmId = senderTm.rows[0]?.id;
+    for (let i = 0; i < mentions.length; i++) {
+      const mention = mentions[i];
+      if (!mention?.team_member_id || !senderTmId) continue;
+      await db.query(
+        `INSERT INTO task_comment_mentions (comment_id, mentioned_index, mentioned_by, informed_by) VALUES ($1, $2, $3, $4);`,
+        [commentId, i, senderTmId, mention.team_member_id]
+      ).catch(() => {});
+    }
+
+    const response: any = {
+      id: commentId,
+      task_id: owner.task_id,
+      task_name: owner.task_name,
+      project_id: owner.project_id,
+      project_name: owner.project_name,
+      team_name: owner.team_name,
+    };
     const emailContent = mentions.length > 0 ? this.resolveContentForEmail(commentContent, mentions) : originalContent;
-
-    const q = `SELECT create_task_comment($1) AS comment;`;
-    const result = await db.query(q, [JSON.stringify(req.body)]);
-    const [data] = result.rows;
-
-    const response = data.comment;
 
     const mentionMessage = `<b>${formatName(req.user?.name)}</b> has mentioned you in a comment on <b>${response.task_name}</b> (${response.team_name})`;
     // const mentions = [...new Set(req.body.mentions || [])] as string[]; // remove duplicates
@@ -373,7 +415,7 @@ export default class TaskCommentsController extends WorklenzControllerBase {
       }
     }
 
-    return res.status(200).send(new ServerResponse(true, data.comment));
+    return res.status(200).send(new ServerResponse(true, { id: commentId, content: commentContent, is_edited: true }));
   }
 
   private static async sendMail(config: IMailConfig) {
@@ -414,6 +456,8 @@ export default class TaskCommentsController extends WorklenzControllerBase {
                     (SELECT name FROM team_member_info_view WHERE team_member_info_view.team_member_id = tm.id) AS member_name,
                     u.avatar_url,
                     task_comments.created_at,
+                    task_comments.updated_at,
+                    (task_comments.updated_at IS NOT NULL AND task_comments.updated_at > task_comments.created_at + INTERVAL '1 second') AS is_edited,
                     (SELECT COALESCE(JSON_AGG(rec), '[]'::JSON)
                       FROM (SELECT tmiv.name AS user_name,
                                   tmiv.email AS user_email
@@ -459,8 +503,13 @@ export default class TaskCommentsController extends WorklenzControllerBase {
 
     for (const comment of result.rows) {
       if (!comment.content) comment.content = "";
-      comment.rawContent = await comment.content;
-      comment.content = await comment.content.replace(/\n/g, "</br>");
+      comment.rawContent = comment.content;
+      // Heuristic: only inject HTML <br> for legacy HTML-bodied comments. Markdown bodies
+      // are rendered client-side via Tiptap and need raw newlines preserved.
+      const isLegacyHtml = /^<(p|div|span|h[1-6]|ul|ol|br|strong|em|a|blockquote|pre|table|img)\b/i.test(comment.content.trim());
+      if (isLegacyHtml) {
+        comment.content = comment.content.replace(/\n/g, "</br>");
+      }
       comment.edit = false;
       const { mentions } = comment;
       if (mentions.length > 0) {
@@ -470,7 +519,11 @@ export default class TaskCommentsController extends WorklenzControllerBase {
             const index = parseInt(placeHolder.match(/\d+/)[0]);
             if (index >= 0 && index < comment.mentions.length) {
               comment.rawContent = comment.rawContent.replace(placeHolder, `@${comment.mentions[index].user_name}`);
-              comment.content = comment.content.replace(placeHolder, `<span class="mentions"> @${comment.mentions[index].user_name} </span>`);
+              if (isLegacyHtml) {
+                comment.content = comment.content.replace(placeHolder, `<span class="mentions"> @${comment.mentions[index].user_name} </span>`);
+              } else {
+                comment.content = comment.content.replace(placeHolder, `@${comment.mentions[index].user_name}`);
+              }
             }
           });
         }

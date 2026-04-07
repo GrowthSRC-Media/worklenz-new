@@ -3,7 +3,9 @@ import { Skeleton, Avatar, Tooltip, Popconfirm, message } from '@/shared/antd-im
 import { Comment } from '@ant-design/compatible';
 import dayjs from 'dayjs';
 
-import { LikeOutlined, LikeTwoTone, LinkOutlined } from '@/shared/antd-imports';
+import { LikeOutlined, LikeTwoTone, LinkOutlined, EditOutlined } from '@/shared/antd-imports';
+import { MarkdownView } from '@/components/editors/tiptap-markdown-editor/tiptap-markdown-editor';
+import { isLikelyHtml } from '@/utils/markdown';
 import { ITaskCommentViewModel } from '@/types/tasks/task-comments.types';
 import taskCommentsApiService from '@/api/tasks/task-comments.api.service';
 import { useAuthService } from '@/hooks/useAuth';
@@ -122,9 +124,10 @@ const TaskComments = ({ taskId, t }: { taskId?: string; t: TFunction }) => {
             return dayjs(a.created_at).isBefore(dayjs(b.created_at)) ? -1 : 1;
           });
 
-          // Process content (mentions and links)
+          // For legacy HTML content, process mentions/links into anchor tags.
+          // For markdown content, leave it untouched — MarkdownView renders it.
           sortedComments.forEach(comment => {
-            if (comment.content) {
+            if (comment.content && isLikelyHtml(comment.content)) {
               comment.content = processContent(comment.content);
             }
           });
@@ -260,8 +263,8 @@ const TaskComments = ({ taskId, t }: { taskId?: string; t: TFunction }) => {
 
   const commentUpdated = (comment: ITaskCommentViewModel) => {
     comment.edit = false;
-    // Process content (mentions and links) in updated comment
-    if (comment.content) {
+    // Process legacy HTML content; markdown content rendered as-is.
+    if (comment.content && isLikelyHtml(comment.content)) {
       comment.content = processContent(comment.content);
     }
     setComments([...comments]); // Force re-render
@@ -340,17 +343,28 @@ const TaskComments = ({ taskId, t }: { taskId?: string; t: TFunction }) => {
                   <Comment
                     key={item.id}
                     author={<span style={authorStyle}>{item.member_name}</span>}
-                    datetime={<span style={dateStyle}>{fromNow(item.created_at || '')}</span>}
+                    datetime={
+                      <span style={dateStyle}>
+                        {fromNow(item.created_at || '')}
+                        {item.is_edited ? ' (edited)' : ''}
+                      </span>
+                    }
                     avatar={<SingleAvatar name={item.member_name} avatarUrl={item.avatar_url} />}
                     content={
                       item.edit ? (
                         <TaskViewCommentEdit commentData={item} onUpdated={commentUpdated} />
                       ) : (
                         <>
-                          <p
-                            className={`comment-content-${themeMode}`}
-                            dangerouslySetInnerHTML={{ __html: item.content || '' }}
-                          />
+                          {isLikelyHtml(item.content) ? (
+                            <p
+                              className={`comment-content-${themeMode}`}
+                              dangerouslySetInnerHTML={{ __html: item.content || '' }}
+                            />
+                          ) : (
+                            <div className={`comment-content-${themeMode}`}>
+                              <MarkdownView value={item.content || ''} />
+                            </div>
+                          )}
                           {item.attachments && item.attachments.length > 0 && (
                             <div className="ant-upload-list ant-upload-list-picture-card">
                               <AttachmentsGrid
@@ -391,16 +405,16 @@ const TaskComments = ({ taskId, t }: { taskId?: string; t: TFunction }) => {
                       <span key="copy-link" onClick={() => item.id && copyCommentLink(item.id)} style={actionStyle}>
                         <LinkOutlined />
                       </span>,
-                      //   canDelete(item.user_id) && (
-                      //     <span
-                      //       key="edit"
-                      //       onClick={() => editComment(item)}
-                      //       style={actionStyle}
-                      //     >
-                      //       <EditOutlined />
-                      //       <span style={{ marginLeft: 4 }}>Edit</span>
-                      //     </span>
-                      //   ),
+                      canDelete(item.user_id) && (
+                        <span
+                          key="edit"
+                          onClick={() => editComment(item)}
+                          style={actionStyle}
+                        >
+                          <EditOutlined />
+                          <span style={{ marginLeft: 4 }}>Edit</span>
+                        </span>
+                      ),
                       canDelete(item.user_id) && (
                         <Popconfirm
                           key="delete"

@@ -13,6 +13,7 @@ const ProjectList = lazy(() => import('@/pages/projects/project-list'));
 const Schedule = lazy(() => import('@/pages/schedule/schedule'));
 
 const ProjectView = lazy(() => import('@/pages/projects/projectView/project-view'));
+const TaskPage = lazy(() => import('@/pages/projects/projectView/task-page/task-page'));
 const Unauthorized = lazy(() => import('@/pages/unauthorized/unauthorized'));
 const GanttDemoPage = lazy(() => import('@/pages/GanttDemoPage'));
 
@@ -85,6 +86,14 @@ const mainRoutes: RouteObject[] = [
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <ProjectView />
+          </Suspense>
+        ),
+      },
+      {
+        path: `projects/:projectId/tasks/:taskId`,
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <TaskPage />
           </Suspense>
         ),
       },

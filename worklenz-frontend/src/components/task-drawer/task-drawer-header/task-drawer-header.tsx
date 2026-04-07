@@ -1,8 +1,9 @@
 import { Button, Dropdown, Flex, Input, InputRef, MenuProps, Tooltip } from '@/shared/antd-imports';
 import React, { ChangeEvent, useEffect, useRef, useState } from 'react';
-import { EllipsisOutlined, LinkOutlined } from '@/shared/antd-imports';
+import { EllipsisOutlined, LinkOutlined, ExpandAltOutlined } from '@/shared/antd-imports';
 import { TFunction } from 'i18next';
 import { copyTaskLink } from '@/utils/copyTaskLink';
+import { useNavigate } from 'react-router-dom';
 
 import './task-drawer-header.css';
 
@@ -37,6 +38,7 @@ const truncateText = (text: string, maxLength: number = 50): string => {
 
 const TaskDrawerHeader = ({ inputRef, t }: TaskDrawerHeaderProps) => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { socket, connected } = useSocket();
   const { clearTaskFromUrl } = useTaskDrawerUrlSync();
   const isDeleting = useRef(false);
@@ -195,6 +197,21 @@ const TaskDrawerHeader = ({ inputRef, t }: TaskDrawerHeaderProps) => {
           task={taskFormViewModel?.task ?? ({} as ITaskViewModel)}
           teamId={currentSession?.team_id ?? ''}
         />
+
+        <Tooltip title="Open in full page">
+          <Button
+            type="text"
+            icon={<ExpandAltOutlined />}
+            onClick={() => {
+              const projectId = taskFormViewModel?.task?.project_id;
+              if (projectId && selectedTaskId) {
+                clearTaskFromUrl();
+                dispatch(setShowTaskDrawer(false));
+                navigate(`/worklenz/projects/${projectId}/tasks/${selectedTaskId}`);
+              }
+            }}
+          />
+        </Tooltip>
 
         <Dropdown overlayClassName={'delete-task-dropdown'} menu={{ items: deletTaskDropdownItems }}>
           <Button type="text" icon={<EllipsisOutlined />} />

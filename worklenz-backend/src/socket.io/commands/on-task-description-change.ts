@@ -3,7 +3,6 @@ import db from "../../config/db";
 import { SocketEvents } from "../events";
 
 import { log_error, notifyProjectUpdates } from "../util";
-import sanitize from "sanitize-html";
 import {
   getTaskDetails,
   logDescriptionChange,
@@ -23,12 +22,15 @@ export async function on_task_description_change(
                RETURNING description;`;
     const task_data = await getTaskDetails(body.task_id, "description");
 
-    const description =
-      (body.description || "")
-        .replace(/(^([ ]*<p><br><\/p>)*)|((<p><br><\/p>)*[ ]*$)/gi, "")
-        .trim() || null;
+    // Content is now stored as markdown text. Trim whitespace; persist as-is.
+    // Length cap matches the previous frontend wordcount expectation.
+    const MAX_DESCRIPTION_LENGTH = 100000;
+    let description: string | null = (body.description || "").trim() || null;
+    if (description && description.length > MAX_DESCRIPTION_LENGTH) {
+      description = description.slice(0, MAX_DESCRIPTION_LENGTH);
+    }
 
-    await db.query(q, [body.task_id, sanitize(description)]);
+    await db.query(q, [body.task_id, description]);
 
     socket.emit(SocketEvents.TASK_DESCRIPTION_CHANGE.toString(), {
       id: body.task_id,
