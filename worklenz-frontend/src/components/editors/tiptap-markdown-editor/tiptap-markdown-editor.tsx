@@ -32,7 +32,10 @@ const buildExtensions = (placeholder?: string) => [
     html: false,
     linkify: true,
     breaks: true,
+    tightLists: true,
+    bulletListMarker: '-',
     transformPastedText: true,
+    transformCopiedText: true,
   }),
   ...(placeholder ? [Placeholder.configure({ placeholder })] : []),
 ];
