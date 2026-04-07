@@ -31,7 +31,7 @@ const buildExtensions = (placeholder?: string) => [
   Markdown.configure({
     html: false,
     linkify: true,
-    breaks: true,
+    breaks: false,
     tightLists: true,
     bulletListMarker: '-',
     transformPastedText: true,
@@ -87,9 +87,13 @@ const TiptapMarkdownEditor = ({
     }
   }, [editor, value]);
 
-  // Sync external value changes (e.g. switching tasks)
+  // Sync external value changes (e.g. switching tasks).
+  // CRITICAL: never re-sync while the user is actively typing — markdown
+  // round-trip isn't byte-identical and re-parsing mid-edit will collapse
+  // in-progress structures (empty list items, soft breaks, etc.).
   useEffect(() => {
     if (!editor || !didInit.current) return;
+    if (editor.isFocused) return;
     const current = getMd(editor);
     if ((value || '') !== current && (value || '') !== lastEmitted.current) {
       editor.commands.setContent(value || '', false);
