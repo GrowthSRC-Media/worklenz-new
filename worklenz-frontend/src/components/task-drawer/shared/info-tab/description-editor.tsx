@@ -83,6 +83,7 @@ const DescriptionEditor = ({ description, taskId, parentTaskId }: DescriptionEdi
     <div ref={wrapperRef}>
       {isEditorOpen ? (
         <TiptapMarkdownEditor
+          key={taskId}
           value={content}
           onChange={setContent}
           onBlur={next => {
