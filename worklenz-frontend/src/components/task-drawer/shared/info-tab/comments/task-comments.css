@@ -9,6 +9,58 @@
   line-height: 1.4;
 }
 
+.markdown-content p,
+.markdown-content ul,
+.markdown-content ol,
+.markdown-content blockquote,
+.markdown-content pre {
+  margin-bottom: 8px;
+}
+
+.markdown-content p:last-child,
+.markdown-content ul:last-child,
+.markdown-content ol:last-child,
+.markdown-content blockquote:last-child,
+.markdown-content pre:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  padding-left: 20px;
+}
+
+.markdown-content a {
+  color: #1890ff;
+  text-decoration: underline;
+}
+
+.markdown-content blockquote {
+  border-left: 3px solid #d9d9d9;
+  padding-left: 10px;
+  opacity: 0.9;
+}
+
+.theme-dark .markdown-content blockquote {
+  border-left-color: #434343;
+}
+
+.markdown-content pre,
+.markdown-content code {
+  font-family: Consolas, Monaco, monospace;
+}
+
+.markdown-content pre {
+  padding: 8px 10px;
+  border-radius: 8px;
+  overflow-x: auto;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.theme-dark .markdown-content pre {
+  background: rgba(255, 255, 255, 0.06);
+}
+
 /* Mentions styling with dark mode support */
 .mentions {
   font-weight: 500;

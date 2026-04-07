@@ -24,11 +24,14 @@ export async function on_task_description_change(
     const task_data = await getTaskDetails(body.task_id, "description");
 
     const description =
-      (body.description || "")
-        .replace(/(^([ ]*<p><br><\/p>)*)|((<p><br><\/p>)*[ ]*$)/gi, "")
+      sanitize(body.description || "", {
+        allowedTags: [],
+        allowedAttributes: {},
+      })
+        .replace(/\r\n/g, "\n")
         .trim() || null;
 
-    await db.query(q, [body.task_id, sanitize(description)]);
+    await db.query(q, [body.task_id, description]);
 
     socket.emit(SocketEvents.TASK_DESCRIPTION_CHANGE.toString(), {
       id: body.task_id,

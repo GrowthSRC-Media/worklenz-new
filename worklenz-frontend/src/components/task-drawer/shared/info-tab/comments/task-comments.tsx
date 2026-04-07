@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Skeleton, Avatar, Tooltip, Popconfirm, message } from '@/shared/antd-imports';
+import { Skeleton, Tooltip, Popconfirm, message } from '@/shared/antd-imports';
 import { Comment } from '@ant-design/compatible';
 import dayjs from 'dayjs';
 
-import { LikeOutlined, LikeTwoTone, LinkOutlined } from '@/shared/antd-imports';
+import { LikeOutlined, LikeTwoTone, LinkOutlined, EditOutlined } from '@/shared/antd-imports';
 import { ITaskCommentViewModel } from '@/types/tasks/task-comments.types';
 import taskCommentsApiService from '@/api/tasks/task-comments.api.service';
 import { useAuthService } from '@/hooks/useAuth';
 import { fromNow } from '@/utils/dateUtils';
-import { AvatarNamesMap } from '@/shared/constants';
 import logger from '@/utils/errorLogger';
 import TaskViewCommentEdit from './task-view-comment-edit';
 import './task-comments.css';
@@ -20,9 +19,7 @@ import { colors } from '@/styles/colors';
 import AttachmentsGrid from '../attachments/attachments-grid';
 import { TFunction } from 'i18next';
 import SingleAvatar from '@/components/common/single-avatar/single-avatar';
-import { sanitizeHtml } from '@/utils/sanitizeInput';
-import { useSocket } from '@/socket/socketContext';
-import { SocketEvents } from '@/shared/socket-events';
+import { renderMarkdown } from '@/utils/markdown';
 
 // Helper function to format date for time separators
 const formatDateForSeparator = (date: string) => {
@@ -43,50 +40,6 @@ const isDifferentDay = (date1: string, date2: string) => {
   return !dayjs(date1).isSame(dayjs(date2), 'day');
 };
 
-// Helper function to check if content already has processed mentions
-const hasProcessedMentions = (content: string): boolean => {
-  return content.includes('<span class="mentions">');
-};
-
-// Helper function to process mentions in content
-const processMentions = (content: string) => {
-  if (!content) return '';
-
-  // Check if content already contains mentions spans
-  if (hasProcessedMentions(content)) {
-    return content; // Already processed, return as is
-  }
-
-  // Replace @mentions with styled spans
-  return content.replace(/@(\w+)/g, '<span class="mentions">@$1</span>');
-};
-
-// Utility to linkify URLs in text
-const linkify = (text: string) => {
-  if (!text) return '';
-  // Regex to match URLs (http, https, www)
-  return text.replace(/(https?:\/\/[^\s]+|www\.[^\s]+)/g, url => {
-    let href = url;
-    if (!href.startsWith('http')) {
-      href = 'http://' + href;
-    }
-    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>`;
-  });
-};
-
-// Helper function to process mentions and links in content
-const processContent = (content: string) => {
-  if (!content) return '';
-  // First, linkify URLs
-  let processed = linkify(content);
-  // Then, process mentions (if not already processed)
-  if (!hasProcessedMentions(processed)) {
-    processed = processMentions(processed);
-  }
-  // Sanitize the final HTML (allowing <a> and <span class="mentions">)
-  return sanitizeHtml(processed);
-};
-
 const TaskComments = ({ taskId, t }: { taskId?: string; t: TFunction }) => {
   const [loading, setLoading] = useState(true);
   const [comments, setComments] = useState<ITaskCommentViewModel[]>([]);
@@ -94,7 +47,6 @@ const TaskComments = ({ taskId, t }: { taskId?: string; t: TFunction }) => {
   const auth = useAuthService();
   const themeMode = useAppSelector(state => state.themeReducer.mode);
   const currentUserId = auth.getCurrentSession()?.id;
-  const { socket, connected } = useSocket();
   const dispatch = useAppDispatch();
   const projectId = useAppSelector(state => state.projectReducer.projectId);
 
@@ -120,13 +72,6 @@ const TaskComments = ({ taskId, t }: { taskId?: string; t: TFunction }) => {
           // Sort comments by date (oldest first)
           const sortedComments = [...res.body].sort((a, b) => {
             return dayjs(a.created_at).isBefore(dayjs(b.created_at)) ? -1 : 1;
-          });
-
-          // Process content (mentions and links)
-          sortedComments.forEach(comment => {
-            if (comment.content) {
-              comment.content = processContent(comment.content);
-            }
           });
 
           setComments(sortedComments);
@@ -260,29 +205,7 @@ const TaskComments = ({ taskId, t }: { taskId?: string; t: TFunction }) => {
 
   const commentUpdated = (comment: ITaskCommentViewModel) => {
     comment.edit = false;
-    // Process content (mentions and links) in updated comment
-    if (comment.content) {
-      comment.content = processContent(comment.content);
-    }
     setComments([...comments]); // Force re-render
-  };
-
-  const deleteAttachment = async (attachmentId: string) => {
-    if (!attachmentId || !taskId) return;
-
-    try {
-      const res = await taskCommentsApiService.deleteAttachment(attachmentId, taskId);
-      if (res.done) {
-        await getComments(false);
-
-        // Dispatch event to notify that an attachment was deleted
-        document.dispatchEvent(new CustomEvent('task-comment-update', { 
-          detail: { taskId } 
-        }));
-      }
-    } catch (e) {
-      logger.error('Error deleting attachment', e);
-    }
   };
 
   // Theme-aware styles
@@ -347,9 +270,14 @@ const TaskComments = ({ taskId, t }: { taskId?: string; t: TFunction }) => {
                         <TaskViewCommentEdit commentData={item} onUpdated={commentUpdated} />
                       ) : (
                         <>
-                          <p
-                            className={`comment-content-${themeMode}`}
-                            dangerouslySetInnerHTML={{ __html: item.content || '' }}
+                          <div
+                            className={`comment-content-${themeMode} markdown-content`}
+                            dangerouslySetInnerHTML={{
+                              __html: renderMarkdown(
+                                item.rawContent || item.content || '',
+                                item.mentions?.map((mention: any) => mention.user_name || mention.name).filter(Boolean) || []
+                              ),
+                            }}
                           />
                           {item.attachments && item.attachments.length > 0 && (
                             <div className="ant-upload-list ant-upload-list-picture-card">
@@ -391,16 +319,15 @@ const TaskComments = ({ taskId, t }: { taskId?: string; t: TFunction }) => {
                       <span key="copy-link" onClick={() => item.id && copyCommentLink(item.id)} style={actionStyle}>
                         <LinkOutlined />
                       </span>,
-                      //   canDelete(item.user_id) && (
-                      //     <span
-                      //       key="edit"
-                      //       onClick={() => editComment(item)}
-                      //       style={actionStyle}
-                      //     >
-                      //       <EditOutlined />
-                      //       <span style={{ marginLeft: 4 }}>Edit</span>
-                      //     </span>
-                      //   ),
+                      canDelete(item.user_id) && (
+                        <span
+                          key="edit"
+                          onClick={() => editComment(item)}
+                          style={actionStyle}
+                        >
+                          <EditOutlined />
+                        </span>
+                      ),
                       canDelete(item.user_id) && (
                         <Popconfirm
                           key="delete"

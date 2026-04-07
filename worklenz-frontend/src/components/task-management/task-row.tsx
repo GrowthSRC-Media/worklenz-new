@@ -2,7 +2,6 @@ import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react'
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useSelector } from 'react-redux';
-import DOMPurify from 'dompurify';
 import {
   Input,
   Typography,
@@ -56,6 +55,7 @@ import {
   fetchTask,
 } from '@/features/task-drawer/task-drawer.slice';
 import useDragCursor from '@/hooks/useDragCursor';
+import { markdownToPlainText } from '@/utils/markdown';
 
 interface TaskRowProps {
   task: Task;
@@ -125,18 +125,18 @@ const TaskDescription = React.memo<{ description?: string; isDarkMode: boolean }
   ({ description, isDarkMode }) => {
     if (!description) return null;
 
-    const sanitizedDescription = DOMPurify.sanitize(description);
+    const preview = markdownToPlainText(description);
 
     return (
       <Typography.Paragraph
         ellipsis={{
           expandable: false,
           rows: 1,
-          tooltip: description,
+          tooltip: preview,
         }}
         className={`w-full mb-0 text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
       >
-        <span dangerouslySetInnerHTML={{ __html: sanitizedDescription }} />
+        {preview}
       </Typography.Paragraph>
     );
   }
