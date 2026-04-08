@@ -1,3 +1,38 @@
+import { Editor, generateJSON } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Link from '@tiptap/extension-link';
+import { Markdown } from 'tiptap-markdown';
+
+/**
+ * Convert a legacy HTML string (e.g. from the old TinyMCE editor) to markdown,
+ * using the same Tiptap extension stack the live editor uses so the output is
+ * round-trip compatible. Anything outside the supported schema is dropped
+ * rather than leaked as literal text.
+ */
+export const htmlToMarkdown = (html: string): string => {
+  if (!html) return '';
+  const extensions = [
+    StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+    Link.configure({ openOnClick: false, autolink: true }),
+    Markdown.configure({
+      html: false,
+      linkify: true,
+      breaks: false,
+      tightLists: true,
+      bulletListMarker: '-',
+    }),
+  ];
+  try {
+    const json = generateJSON(html, extensions);
+    const editor = new Editor({ extensions, content: json, editable: false });
+    const md = (editor.storage as any).markdown?.getMarkdown?.() ?? '';
+    editor.destroy();
+    return md;
+  } catch {
+    return html;
+  }
+};
+
 /**
  * Heuristic: detect if a stored content string looks like HTML.
  * Used to render legacy (TinyMCE) descriptions/comments via dangerouslySetInnerHTML

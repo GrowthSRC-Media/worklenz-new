@@ -6,7 +6,7 @@ import { SocketEvents } from '@/shared/socket-events';
 import TiptapMarkdownEditor, {
   MarkdownView,
 } from '@/components/editors/tiptap-markdown-editor/tiptap-markdown-editor';
-import { isLikelyHtml } from '@/utils/markdown';
+import { htmlToMarkdown, isLikelyHtml } from '@/utils/markdown';
 
 interface DescriptionEditorProps {
   description: string | null;
@@ -19,11 +19,27 @@ const DescriptionEditor = ({ description, taskId, parentTaskId }: DescriptionEdi
   const themeMode = useAppSelector(state => state.themeReducer.mode);
   const [isHovered, setIsHovered] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
-  const [content, setContent] = useState<string>(description || '');
+  const normalizeIncoming = (raw: string | null): string => {
+    const value = raw || '';
+    if (!value) return '';
+    // Legacy records were stored as HTML by the old TinyMCE editor. Convert
+    // once, up front, so both the read-only view and the Tiptap editor only
+    // ever see markdown — avoids data loss when Tiptap's markdown parser
+    // would otherwise mangle raw HTML fed into setContent.
+    return isLikelyHtml(value) ? htmlToMarkdown(value) : value;
+  };
+  const [content, setContent] = useState<string>(() => normalizeIncoming(description));
   const wrapperRef = useRef<HTMLDivElement>(null);
+  // Only persist on close/blur if the user actually typed. onChange from the
+  // Tiptap editor fires exclusively from real ProseMirror transactions
+  // (onCreate seeds with emitUpdate=false), so flipping this in onChange is a
+  // reliable "user edited" signal. Prevents blur-wipes when markdown
+  // round-tripping is lossy or when an HTML record was auto-converted.
+  const dirtyRef = useRef(false);
 
   useEffect(() => {
-    setContent(description || '');
+    setContent(normalizeIncoming(description));
+    dirtyRef.current = false;
   }, [description, taskId]);
 
   const persistDescription = (next: string) => {
@@ -45,8 +61,9 @@ const DescriptionEditor = ({ description, taskId, parentTaskId }: DescriptionEdi
       const wrapper = wrapperRef.current;
       const target = event.target as Node;
       if (wrapper && !wrapper.contains(target)) {
-        if (content !== (description || '')) {
+        if (dirtyRef.current) {
           persistDescription(content);
+          dirtyRef.current = false;
         }
         setIsEditorOpen(false);
       }
@@ -80,14 +97,20 @@ const DescriptionEditor = ({ description, taskId, parentTaskId }: DescriptionEdi
   };
 
   return (
-    <div ref={wrapperRef}>
+    <div ref={wrapperRef} className={`description-editor-wrapper theme-${themeMode}`}>
       {isEditorOpen ? (
         <TiptapMarkdownEditor
           key={taskId}
           value={content}
-          onChange={setContent}
+          onChange={next => {
+            dirtyRef.current = true;
+            setContent(next);
+          }}
           onBlur={next => {
-            if (next !== (description || '')) persistDescription(next);
+            if (dirtyRef.current) {
+              persistDescription(next);
+              dirtyRef.current = false;
+            }
           }}
           autoFocus
           minHeight={200}

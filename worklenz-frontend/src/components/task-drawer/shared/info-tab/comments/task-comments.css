@@ -161,6 +161,45 @@
   margin-bottom: 0;
 }
 
+/* Hyperlink color inside legacy (dangerouslySetInnerHTML) comment bodies.
+   Tiptap-rendered paths are already styled via .tiptap-md-view .ProseMirror a. */
+.comment-content-light a,
+.comment-content-light a:visited {
+  color: #1890ff;
+  text-decoration: underline;
+  word-break: break-word;
+}
+.comment-content-light a:hover {
+  color: #40a9ff;
+}
+.comment-content-dark a,
+.comment-content-dark a:visited {
+  color: #4dabf7;
+  text-decoration: underline;
+  word-break: break-word;
+}
+.comment-content-dark a:hover {
+  color: #74c0fc;
+}
+
+/* Same treatment for the legacy HTML description read-only path. */
+.description-content a,
+.description-content a:visited {
+  color: #1890ff;
+  text-decoration: underline;
+  word-break: break-word;
+}
+.description-content a:hover {
+  color: #40a9ff;
+}
+.theme-dark .description-content a,
+.theme-dark .description-content a:visited {
+  color: #4dabf7;
+}
+.theme-dark .description-content a:hover {
+  color: #74c0fc;
+}
+
 /* Attachments in comments */
 .ant-comment-content-detail .ant-upload-list {
   margin-top: 6px;

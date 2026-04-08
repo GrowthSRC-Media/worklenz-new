@@ -5,23 +5,26 @@ import taskCommentsApiService from '@/api/tasks/task-comments.api.service';
 import logger from '@/utils/errorLogger';
 import { useAppSelector } from '@/hooks/useAppSelector';
 import TiptapMarkdownEditor from '@/components/editors/tiptap-markdown-editor/tiptap-markdown-editor';
-import { extractMentionsFromMarkdown, isLikelyHtml } from '@/utils/markdown';
+import { extractMentionsFromMarkdown, htmlToMarkdown, isLikelyHtml } from '@/utils/markdown';
 
 interface TaskViewCommentEditProps {
   commentData: ITaskCommentViewModel;
   onUpdated: (comment: ITaskCommentViewModel) => void;
 }
 
-// Convert legacy HTML comment content to a plain markdown-friendly seed.
+// Convert legacy HTML comment content to markdown, preserving formatting
+// (bold, italic, lists, links, etc.) by routing through the same Tiptap
+// pipeline the editor uses. Mention spans produced by task-comments'
+// processContent() are normalized back to `@name` before conversion so they
+// survive as plain-text mentions.
 const prepareContentForEditing = (content: string): string => {
   if (!content) return '';
   if (!isLikelyHtml(content)) return content;
-  return content
-    .replace(/<span class="mentions">\s*@(\w+)\s*<\/span>/g, '@$1')
-    .replace(/<\/?br\s*\/?>(\n)?/gi, '\n')
-    .replace(/<\/p>\s*<p>/gi, '\n\n')
-    .replace(/<[^>]*>/g, '')
-    .trim();
+  const unwrappedMentions = content.replace(
+    /<span class="mentions">\s*@(\w+)\s*<\/span>/g,
+    '@$1'
+  );
+  return htmlToMarkdown(unwrappedMentions);
 };
 
 const TaskViewCommentEdit = ({ commentData, onUpdated }: TaskViewCommentEditProps) => {
