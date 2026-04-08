@@ -116,17 +116,20 @@ interface MarkdownViewProps {
  */
 export const MarkdownView = ({ value, className }: MarkdownViewProps) => {
   const themeMode = useAppSelector(state => state.themeReducer.mode);
-  const editor = useEditor(
-    {
-      extensions: buildExtensions(),
-      content: '',
-      editable: false,
-      onCreate: ({ editor }) => {
-        if (value) editor.commands.setContent(value, false);
-      },
-    },
-    [value]
-  );
+  // Build the editor ONCE. Re-seeding markdown in onCreate is racy —
+  // tiptap-markdown's parser hooks aren't always wired in time, so setContent
+  // can fall back to the default HTML parser and leak raw markdown (### etc.)
+  // as plain text. Pushing content via a post-mount effect is reliable.
+  const editor = useEditor({
+    extensions: buildExtensions(),
+    content: '',
+    editable: false,
+  });
+
+  useEffect(() => {
+    if (!editor) return;
+    editor.commands.setContent(value || '', false);
+  }, [editor, value]);
 
   return (
     <div className={`tiptap-md-view theme-${themeMode} ${className || ''}`}>
